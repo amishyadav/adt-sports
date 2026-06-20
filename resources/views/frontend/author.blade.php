@@ -1,8 +1,8 @@
 @extends('layouts.frontend')
-@section('title', $category->name . ' — ' . ($settings['site_name'] ?? 'ADT Sports'))
-@section('meta_desc', $category->description ?: "Latest {$category->name} coverage on " . ($settings['site_name'] ?? 'ADT Sports'))
+@section('title', $user->name . ' — ' . ($settings['site_name'] ?? 'ADT Sports'))
+@section('meta_desc', $user->bio ?: ('Articles, analysis and reporting by ' . $user->name . ' on ' . ($settings['site_name'] ?? 'ADT Sports')))
 {{-- Self-reference paginated pages (incl. ?page=N) so deeper pages stay indexable --}}
-@section('canonical', $articles->currentPage() > 1 ? $articles->url($articles->currentPage()) : route('category', $category->slug))
+@section('canonical', $articles->currentPage() > 1 ? $articles->url($articles->currentPage()) : route('author', $user->id))
 
 @push('head_links')
 @if($articles->previousPageUrl())<link rel="prev" href="{{ $articles->previousPageUrl() }}">@endif
@@ -12,11 +12,23 @@
 @push('schema')
 <script type="application/ld+json">
 {!! json_encode([
+    '@context'   => 'https://schema.org',
+    '@type'      => 'ProfilePage',
+    'mainEntity' => array_filter([
+        '@type'       => 'Person',
+        'name'        => $user->name,
+        'description' => $user->bio ?: null,
+        'url'         => route('author', $user->id),
+    ]),
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+</script>
+<script type="application/ld+json">
+{!! json_encode([
     '@context'        => 'https://schema.org',
     '@type'           => 'BreadcrumbList',
     'itemListElement' => [
         ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => url('/')],
-        ['@type' => 'ListItem', 'position' => 2, 'name' => $category->name, 'item' => route('category', $category->slug)],
+        ['@type' => 'ListItem', 'position' => 2, 'name' => $user->name, 'item' => route('author', $user->id)],
     ],
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
 </script>
@@ -25,16 +37,16 @@
 @section('content')
 <div class="wrap">
 
-  {{-- Category Header --}}
-  <div style="padding:40px 0 8px;border-bottom:3px solid {{ $category->color }};margin-bottom:32px">
-    <div style="display:inline-block;background:{{ $category->color }};color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:3px 12px;border-radius:3px;margin-bottom:12px">
-      Category
+  {{-- Author Header --}}
+  <div style="padding:40px 0 8px;border-bottom:3px solid var(--brand);margin-bottom:32px">
+    <div style="display:inline-block;background:var(--brand);color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:3px 12px;border-radius:3px;margin-bottom:12px">
+      Author
     </div>
     <h1 style="font-family:var(--display);font-size:clamp(32px,5vw,52px);font-weight:800;line-height:1.1;color:var(--ink);margin-bottom:10px">
-      {{ $category->name }}
+      {{ $user->name }}
     </h1>
-    @if($category->description)
-      <p style="font-size:16px;color:var(--ink2);max-width:600px;line-height:1.6">{{ $category->description }}</p>
+    @if($user->bio)
+      <p style="font-size:16px;color:var(--ink2);max-width:600px;line-height:1.6">{{ $user->bio }}</p>
     @endif
     <div style="font-size:13px;color:var(--ink3);margin-top:10px">
       {{ $articles->total() }} {{ Str::plural('article', $articles->total()) }}
@@ -43,15 +55,13 @@
 
   <div class="content-grid">
     <main>
-      @forelse($articles as $a)
+      @foreach($articles as $a)
       <a href="{{ route('article', $a->slug) }}" class="card-row" style="text-decoration:none;display:grid">
         <div>
-          <span class="cr-cat" style="color:{{ $category->color }}">{{ $category->name }}</span>
+          <span class="cr-cat" style="{{ $a->category ? 'color:'.$a->category->color : '' }}">{{ $a->category?->name ?? 'Article' }}</span>
           <h2 class="cr-title">{{ $a->title }}</h2>
           @if($a->excerpt)<div class="cr-excerpt">{{ $a->excerpt }}</div>@endif
           <div class="cr-meta">
-            <span>{{ $a->author?->name ?? 'ADT Sports' }}</span>
-            <span class="sep"></span>
             <span>{{ $a->formatted_date }}</span>
             <span class="sep"></span>
             <span>{{ $a->read_time }} read</span>
@@ -62,13 +72,7 @@
           @else {{ $a->cover_emoji }} @endif
         </div>
       </a>
-      @empty
-      <div style="text-align:center;padding:64px 20px;color:var(--ink3)">
-        <div style="font-size:44px;margin-bottom:14px">📭</div>
-        <p>No articles in this category yet.</p>
-        <a href="{{ route('home') }}" style="color:var(--brand);margin-top:12px;display:inline-block">← Back to home</a>
-      </div>
-      @endforelse
+      @endforeach
 
       @if($articles->hasPages())
         <div class="pagination-wrap">{{ $articles->links() }}</div>
@@ -96,9 +100,7 @@
         </div>
         <div class="tag-cloud">
           @foreach($categories as $cat)
-            <a href="{{ route('category', $cat->slug) }}" class="tag" style="{{ $cat->slug===$category->slug ? 'background:var(--brand-soft);border-color:var(--brand);color:var(--brand)' : '' }}">
-              {{ $cat->name }}
-            </a>
+            <a href="{{ route('category', $cat->slug) }}" class="tag">{{ $cat->name }}</a>
           @endforeach
         </div>
       </div>

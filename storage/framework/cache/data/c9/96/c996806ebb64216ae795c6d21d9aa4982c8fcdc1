@@ -1,0 +1,59 @@
+1781868652s:4514:"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>ADT Sports</title>
+    <link>http://127.0.0.1:8000</link>
+    <description>India&#039;s #1 Kabaddi media platform.</description>
+    <language>en</language>
+    <lastBuildDate>Wed, 17 Jun 26 16:45:54 +0530</lastBuildDate>
+    <atom:link href="http://127.0.0.1:8000/feed.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>PKL Season 11 Finals: Jaipur Pink Panthers Seal Historic Championship Against Patna Pirates</title>
+      <link>http://127.0.0.1:8000/article/pkl-season-11-finals-jaipur-pink-panthers-seal-historic-championship-against-patna-pirates</link>
+      <guid isPermaLink="true">http://127.0.0.1:8000/article/pkl-season-11-finals-jaipur-pink-panthers-seal-historic-championship-against-patna-pirates</guid>
+      <pubDate>Wed, 17 Jun 26 16:45:54 +0530</pubDate>
+      <category>Match Updates</category>
+      <description>A stunning defensive performance combined with Arjun Deshwal&#039;s 15-point haul sealed a historic championship in front of a roaring home crowd.</description>
+    </item>
+    <item>
+      <title>Pardeep Narwal — The Dubki King Rewrites History With His 1,500th Career Raid Point</title>
+      <link>http://127.0.0.1:8000/article/pardeep-narwal-the-dubki-king-rewrites-history-with-his-1500th-career-raid-point</link>
+      <guid isPermaLink="true">http://127.0.0.1:8000/article/pardeep-narwal-the-dubki-king-rewrites-history-with-his-1500th-career-raid-point</guid>
+      <pubDate>Mon, 15 Jun 26 16:45:54 +0530</pubDate>
+      <category>Player Stories</category>
+      <description>In a quiet moment during a league match in Pune, the greatest raider in Kabaddi history crossed a milestone that may never be matched.</description>
+    </item>
+    <item>
+      <title>World Kabaddi Federation Announces 2025 World Cup Format — India, Iran &amp; Bangladesh Are Favourites</title>
+      <link>http://127.0.0.1:8000/article/world-kabaddi-federation-announces-2025-world-cup-format-india-iran-bangladesh-are-favourites</link>
+      <guid isPermaLink="true">http://127.0.0.1:8000/article/world-kabaddi-federation-announces-2025-world-cup-format-india-iran-bangladesh-are-favourites</guid>
+      <pubDate>Sun, 14 Jun 26 16:45:54 +0530</pubDate>
+      <category>International</category>
+      <description>The WKF has unveiled a 16-nation tournament with a new bonus point system designed to incentivise high-scoring, attacking Kabaddi.</description>
+    </item>
+    <item>
+      <title>TSR Data Reveals: The Top 5 Defenders by Tackle Success Rate in PKL Season 11</title>
+      <link>http://127.0.0.1:8000/article/tsr-data-reveals-the-top-5-defenders-by-tackle-success-rate-in-pkl-season-11</link>
+      <guid isPermaLink="true">http://127.0.0.1:8000/article/tsr-data-reveals-the-top-5-defenders-by-tackle-success-rate-in-pkl-season-11</guid>
+      <pubDate>Sat, 13 Jun 26 16:45:54 +0530</pubDate>
+      <category>TSR Analytics</category>
+      <description>ADT&#039;s proprietary TSR system processed 12,447 defensive actions from the 2025 season to reveal who truly leads in defensive quality.</description>
+    </item>
+    <item>
+      <title>From Village Mud Mats to PKL Arenas: Ravi Dhankar&#039;s Journey in His Own Words</title>
+      <link>http://127.0.0.1:8000/article/from-village-mud-mats-to-pkl-arenas-ravi-dhankars-journey-in-his-own-words</link>
+      <guid isPermaLink="true">http://127.0.0.1:8000/article/from-village-mud-mats-to-pkl-arenas-ravi-dhankars-journey-in-his-own-words</guid>
+      <pubDate>Wed, 10 Jun 26 16:45:54 +0530</pubDate>
+      <category>Originals</category>
+      <description>The 24-year-old from Ateli village, Haryana, tells ADT Sports about years of 4 AM training sessions, family sacrifice, and the moment everything changed.</description>
+    </item>
+    <item>
+      <title>Why Super Tackles Are Reshaping PKL Strategy: A Deep Dive Into Season 11</title>
+      <link>http://127.0.0.1:8000/article/why-super-tackles-are-reshaping-pkl-strategy-a-deep-dive-into-season-11</link>
+      <guid isPermaLink="true">http://127.0.0.1:8000/article/why-super-tackles-are-reshaping-pkl-strategy-a-deep-dive-into-season-11</guid>
+      <pubDate>Mon, 08 Jun 26 16:45:54 +0530</pubDate>
+      <category>Analysis</category>
+      <description>Super tackle frequency rose 34% year-on-year. TSR data reveals the unexpected game theory driving this tactical evolution.</description>
+    </item>
+  </channel>
+</rss>";

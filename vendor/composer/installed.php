@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'adt/sports-platform',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => NULL,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => 'dbcbe8ea50380b493bc125805855c551e263d57a',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'adt/sports-platform' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => NULL,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => 'dbcbe8ea50380b493bc125805855c551e263d57a',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

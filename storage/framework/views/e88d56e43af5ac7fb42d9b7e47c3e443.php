@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>@yield('title', ($settings['site_name'] ?? 'ADT Sports'))</title>
-<meta name="description" content="@yield('meta_desc', $settings['site_description'] ?? "India's #1 Kabaddi media platform.")">
+<title><?php echo $__env->yieldContent('title', ($settings['site_name'] ?? 'ADT Sports')); ?></title>
+<meta name="description" content="<?php echo $__env->yieldContent('meta_desc', $settings['site_description'] ?? "India's #1 Kabaddi media platform."); ?>">
 
-{{-- ── SEO METADATA ───────────────────────────────────────── --}}
-@php
+
+<?php
     $seoSiteName  = $settings['site_name'] ?? 'ADT Sports';
     $seoTitle     = trim($__env->yieldContent('title', $seoSiteName));
     $seoDesc      = trim($__env->yieldContent('meta_desc', $settings['site_description'] ?? "India's #1 Kabaddi media platform."));
@@ -24,43 +24,44 @@
         $settings['youtube_url']   ?? null,
         $settings['twitter_url']   ?? null,
     ]));
-@endphp
-<link rel="canonical" href="{{ $seoCanonical }}">
-<meta name="robots" content="{{ $seoRobots }}">
-<link rel="alternate" type="application/rss+xml" title="{{ $seoSiteName }} RSS" href="{{ url('/feed.xml') }}">
-@stack('head_links')
+?>
+<link rel="canonical" href="<?php echo e($seoCanonical); ?>">
+<meta name="robots" content="<?php echo e($seoRobots); ?>">
+<link rel="alternate" type="application/rss+xml" title="<?php echo e($seoSiteName); ?> RSS" href="<?php echo e(url('/feed.xml')); ?>">
+<?php echo $__env->yieldPushContent('head_links'); ?>
 
-{{-- Open Graph --}}
-<meta property="og:type" content="{{ $seoType }}">
-<meta property="og:site_name" content="{{ $seoSiteName }}">
-<meta property="og:title" content="{{ $seoTitle }}">
-<meta property="og:description" content="{{ $seoDesc }}">
-<meta property="og:url" content="{{ $seoCanonical }}">
-<meta property="og:image" content="{{ $seoImage }}">
-@stack('og_meta')
 
-{{-- Twitter Card --}}
+<meta property="og:type" content="<?php echo e($seoType); ?>">
+<meta property="og:site_name" content="<?php echo e($seoSiteName); ?>">
+<meta property="og:title" content="<?php echo e($seoTitle); ?>">
+<meta property="og:description" content="<?php echo e($seoDesc); ?>">
+<meta property="og:url" content="<?php echo e($seoCanonical); ?>">
+<meta property="og:image" content="<?php echo e($seoImage); ?>">
+<?php echo $__env->yieldPushContent('og_meta'); ?>
+
+
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{ $seoTitle }}">
-<meta name="twitter:description" content="{{ $seoDesc }}">
-<meta name="twitter:image" content="{{ $seoImage }}">
-@if(!empty($settings['twitter_url']))
-<meta name="twitter:site" content="{{ '@' . \Illuminate\Support\Str::afterLast(rtrim($settings['twitter_url'], '/'), '/') }}">
-@endif
+<meta name="twitter:title" content="<?php echo e($seoTitle); ?>">
+<meta name="twitter:description" content="<?php echo e($seoDesc); ?>">
+<meta name="twitter:image" content="<?php echo e($seoImage); ?>">
+<?php if(!empty($settings['twitter_url'])): ?>
+<meta name="twitter:site" content="<?php echo e('@' . \Illuminate\Support\Str::afterLast(rtrim($settings['twitter_url'], '/'), '/')); ?>">
+<?php endif; ?>
 
-{{-- Organization + WebSite structured data (site-wide) --}}
+
 <script type="application/ld+json">
-{!! json_encode([
+<?php echo json_encode([
     '@context'    => 'https://schema.org',
     '@type'       => 'Organization',
     'name'        => $seoSiteName,
     'url'         => url('/'),
     'logo'        => url('/public/uploads/logo.png'),
     'description' => $settings['site_description'] ?? "India's #1 Kabaddi media platform.",
-] + (count($seoSocials) ? ['sameAs' => $seoSocials] : []), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+] + (count($seoSocials) ? ['sameAs' => $seoSocials] : []), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+
 </script>
 <script type="application/ld+json">
-{!! json_encode([
+<?php echo json_encode([
     '@context'        => 'https://schema.org',
     '@type'           => 'WebSite',
     'name'            => $seoSiteName,
@@ -70,9 +71,10 @@
         'target'      => url('/search') . '?q={search_term_string}',
         'query-input' => 'required name=search_term_string',
     ],
-], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+
 </script>
-@stack('schema')
+<?php echo $__env->yieldPushContent('schema'); ?>
 
   <link rel="shortcut icon" href="/public/uploads/logo.png" data-inertia="favicon-shortcut">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -357,7 +359,7 @@ footer{background:#1c1917;color:rgba(245,240,235,.65);margin-top:60px}
 @media(max-width:768px){.nav-links{display:none}.btn-sub{display:none}.hamburger{display:flex}.card-row{grid-template-columns:1fr}.cr-thumb{width:100%;height:190px}.cards-grid{grid-template-columns:1fr 1fr}.footer-grid{grid-template-columns:1fr}.footer-bottom{flex-direction:column;text-align:center}}
 @media(max-width:480px){.cards-grid{grid-template-columns:1fr}.art-title{font-size:26px}.art-body{font-size:17px}}
 </style>
-@stack('styles')
+<?php echo $__env->yieldPushContent('styles'); ?>
 </head>
 <body>
 <div id="readBar"></div>
@@ -366,9 +368,9 @@ footer{background:#1c1917;color:rgba(245,240,235,.65);margin-top:60px}
   <div class="search-box">
     <div class="search-row">
       <span class="s-icon">🔍</span>
-      <form action="{{ route('search') }}" method="GET" style="flex:1;display:flex">
+      <form action="<?php echo e(route('search')); ?>" method="GET" style="flex:1;display:flex">
         <input type="text" name="q" placeholder="Search Kabaddi news, players, leagues…" autofocus
-          value="{{ request('q') }}" style="flex:1">
+          value="<?php echo e(request('q')); ?>" style="flex:1">
       </form>
       <button class="s-close" onclick="document.getElementById('srchOverlay').classList.remove('open')">✕</button>
     </div>
@@ -378,58 +380,58 @@ footer{background:#1c1917;color:rgba(245,240,235,.65);margin-top:60px}
 
 <div class="mobile-overlay" id="mobileOverlay"></div>
 <div class="mobile-nav" id="mobileNav">
-  <a href="{{ route('home') }}">🏠 Home</a>
-  @foreach($categories as $cat)
-    <a href="{{ route('category', $cat->slug) }}">{{ $cat->name }}</a>
-  @endforeach
-  <a href="{{ route('search') }}">🔍 Search</a>
+  <a href="<?php echo e(route('home')); ?>">🏠 Home</a>
+  <?php $__currentLoopData = $categories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+    <a href="<?php echo e(route('category', $cat->slug)); ?>"><?php echo e($cat->name); ?></a>
+  <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+  <a href="<?php echo e(route('search')); ?>">🔍 Search</a>
 </div>
 
-{{-- TICKER --}}
+
 <div class="ticker-strip">
   <div class="ticker-container">
     <span class="ticker-label">Live</span>
 
-    @php
+    <?php
       $ticker = $settings['breaking_ticker'] ?? 'ADT Sports — India\'s #1 Kabaddi Platform';
       $items = array_filter(array_map('trim', explode('|', $ticker)));
       $doubled = array_merge($items, $items);
-    @endphp
+    ?>
 
     <div class="ticker-wrapper">
       <div class="ticker-inner">
-        @foreach($doubled as $t)
-          <span class="ticker-item">{{ $t }}</span>
+        <?php $__currentLoopData = $doubled; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+          <span class="ticker-item"><?php echo e($t); ?></span>
           <span class="ticker-sep">◆</span>
-        @endforeach
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
       </div>
     </div>
   </div>
 </div>
 
-{{-- NAV --}}
+
 <nav id="mainNav">
   <div class="nav-wrap">
-    <a href="{{ route('home') }}" class="logo">
+    <a href="<?php echo e(route('home')); ?>" class="logo">
       <div class="logo-img"><img src="/public/uploads/logo.png" onerror="this.style.display='none'" alt="ADT"></div>
       <div class="logo-wordmark"><span class="brand">ADT</span> Sports</div>
     </a>
     <div class="nav-links">
-      <a href="{{ route('home') }}" class="{{ request()->routeIs('home') && !request('category') ? 'active':'' }}">Home</a>
-      @foreach($categories->take(5) as $cat)
-        <a href="{{ route('category',$cat->slug) }}"
-          class="{{ request()->route('slug')===$cat->slug ? 'active':'' }}">{{ $cat->name }}</a>
-      @endforeach
-      @if($categories->count() > 5)
+      <a href="<?php echo e(route('home')); ?>" class="<?php echo e(request()->routeIs('home') && !request('category') ? 'active':''); ?>">Home</a>
+      <?php $__currentLoopData = $categories->take(5); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <a href="<?php echo e(route('category',$cat->slug)); ?>"
+          class="<?php echo e(request()->route('slug')===$cat->slug ? 'active':''); ?>"><?php echo e($cat->name); ?></a>
+      <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+      <?php if($categories->count() > 5): ?>
       <div class="nav-drop">
         <a href="#">More <span style="font-size:9px;opacity:.5">▾</span></a>
         <div class="drop-menu">
-          @foreach($categories->skip(5) as $cat)
-            <a href="{{ route('category',$cat->slug) }}">{{ $cat->name }}</a>
-          @endforeach
+          <?php $__currentLoopData = $categories->skip(5); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <a href="<?php echo e(route('category',$cat->slug)); ?>"><?php echo e($cat->name); ?></a>
+          <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </div>
       </div>
-      @endif
+      <?php endif; ?>
     </div>
     <div class="nav-right">
       <button class="icon-btn" onclick="document.getElementById('srchOverlay').classList.add('open')"><i class="fa-solid fa-magnifying-glass"></i></button>
@@ -440,9 +442,9 @@ footer{background:#1c1917;color:rgba(245,240,235,.65);margin-top:60px}
   </div>
 </nav>
 
-@yield('content')
+<?php echo $__env->yieldContent('content'); ?>
 
-{{-- FOOTER --}}
+
 <footer>
   <div class="footer-grid">
     <div>
@@ -450,42 +452,42 @@ footer{background:#1c1917;color:rgba(245,240,235,.65);margin-top:60px}
         <div class="fl-img"><img src="/public/uploads/logo.png" onerror="this.style.display='none'" alt="ADT"></div>
         <span><em>ADT</em> Sports</span>
       </div>
-      <p class="ft-desc">{{ $settings['site_description'] ?? "India's #1 Kabaddi-focused digital media brand." }}</p>
+      <p class="ft-desc"><?php echo e($settings['site_description'] ?? "India's #1 Kabaddi-focused digital media brand."); ?></p>
       <div class="ft-socials">
-        @if(!empty($settings['facebook_url']))  <a href="{{ $settings['facebook_url'] }}"  target="_blank" class="ft-soc icon-facebook"><i class="fa-brands fa-facebook"></i></a> @endif
-        @if(!empty($settings['instagram_url'])) <a href="{{ $settings['instagram_url'] }}" target="_blank" class="ft-soc icon-instagram"><i class="fa-brands fa-instagram"></i></a> @endif
-        @if(!empty($settings['youtube_url']))   <a href="{{ $settings['youtube_url'] }}"   target="_blank" class="ft-soc icon-youtube"><i class="fa-brands fa-youtube"></i></a>  @endif
-        @if(!empty($settings['twitter_url']))   <a href="{{ $settings['twitter_url'] }}"   target="_blank" class="ft-soc icon-twitter"><i class="fa-brands fa-twitter"></i></a> @endif
+        <?php if(!empty($settings['facebook_url'])): ?>  <a href="<?php echo e($settings['facebook_url']); ?>"  target="_blank" class="ft-soc icon-facebook"><i class="fa-brands fa-facebook"></i></a> <?php endif; ?>
+        <?php if(!empty($settings['instagram_url'])): ?> <a href="<?php echo e($settings['instagram_url']); ?>" target="_blank" class="ft-soc icon-instagram"><i class="fa-brands fa-instagram"></i></a> <?php endif; ?>
+        <?php if(!empty($settings['youtube_url'])): ?>   <a href="<?php echo e($settings['youtube_url']); ?>"   target="_blank" class="ft-soc icon-youtube"><i class="fa-brands fa-youtube"></i></a>  <?php endif; ?>
+        <?php if(!empty($settings['twitter_url'])): ?>   <a href="<?php echo e($settings['twitter_url']); ?>"   target="_blank" class="ft-soc icon-twitter"><i class="fa-brands fa-twitter"></i></a> <?php endif; ?>
       </div>
     </div>
     <div class="ft-col">
       <h4>Coverage</h4>
       <ul>
-        @foreach($categories->take(5) as $cat)
-          <li><a href="{{ route('category',$cat->slug) }}">{{ $cat->name }}</a></li>
-        @endforeach
+        <?php $__currentLoopData = $categories->take(5); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+          <li><a href="<?php echo e(route('category',$cat->slug)); ?>"><?php echo e($cat->name); ?></a></li>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
       </ul>
     </div>
     <div class="ft-col">
       <h4>More</h4>
       <ul>
-        @foreach($categories->skip(5)->take(5) as $cat)
-          <li><a href="{{ route('category',$cat->slug) }}">{{ $cat->name }}</a></li>
-        @endforeach
-        <li><a href="{{ route('search') }}">Search</a></li>
+        <?php $__currentLoopData = $categories->skip(5)->take(5); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+          <li><a href="<?php echo e(route('category',$cat->slug)); ?>"><?php echo e($cat->name); ?></a></li>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+        <li><a href="<?php echo e(route('search')); ?>">Search</a></li>
       </ul>
     </div>
     <div class="ft-col">
       <h4>ADT Sports</h4>
       <ul>
-        @if(!empty($settings['site_email'])) <li><a href="mailto:{{ $settings['site_email'] }}">Contact Us</a></li> @endif
-        @if(!empty($settings['site_phone'])) <li><a href="tel:{{ $settings['site_phone'] }}">{{ $settings['site_phone'] }}</a></li> @endif
+        <?php if(!empty($settings['site_email'])): ?> <li><a href="mailto:<?php echo e($settings['site_email']); ?>">Contact Us</a></li> <?php endif; ?>
+        <?php if(!empty($settings['site_phone'])): ?> <li><a href="tel:<?php echo e($settings['site_phone']); ?>"><?php echo e($settings['site_phone']); ?></a></li> <?php endif; ?>
       </ul>
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© {{ date('Y') }} {{ $settings['site_name'] ?? 'ADT Sports' }}. All rights reserved.</span>
-    <span class="footer-tagline">"{{ $settings['footer_tagline'] ?? 'ADT Sports is not covering Kabaddi. It is building its future.' }}"</span>
+    <span>© <?php echo e(date('Y')); ?> <?php echo e($settings['site_name'] ?? 'ADT Sports'); ?>. All rights reserved.</span>
+    <span class="footer-tagline">"<?php echo e($settings['footer_tagline'] ?? 'ADT Sports is not covering Kabaddi. It is building its future.'); ?>"</span>
   </div>
 </footer>
 
@@ -504,6 +506,7 @@ window.addEventListener('scroll',()=>{
   const d=document.documentElement;document.getElementById('readBar').style.width=((window.scrollY/(d.scrollHeight-d.clientHeight))*100)+'%';
 },{passive:true});
 </script>
-@stack('scripts')
+<?php echo $__env->yieldPushContent('scripts'); ?>
 </body>
 </html>
+<?php /**PATH C:\Users\4yush\OneDrive\Desktop\hehe\adt-sports\resources\views/layouts/frontend.blade.php ENDPATH**/ ?>

@@ -1,6 +1,92 @@
 @extends('layouts.frontend')
 @section('title', $article->meta_title ?: $article->title . ' — ' . ($settings['site_name'] ?? 'ADT Sports'))
 @section('meta_desc', $article->meta_desc ?: $article->excerpt)
+@section('canonical', route('article', $article->slug))
+@section('og_type', 'article')
+@if($article->cover_image)
+  @section('og_image', $article->cover_image)
+@endif
+{{-- Keep unpublished/draft articles (viewable by direct slug) out of the index --}}
+@if($article->status !== 'published')
+  @section('robots', 'noindex, nofollow')
+@endif
+
+@push('schema')
+@php
+    $siteName    = $settings['site_name'] ?? 'ADT Sports';
+    $articleImg  = $article->cover_image
+        ? (\Illuminate\Support\Str::startsWith($article->cover_image, ['http://','https://']) ? $article->cover_image : url($article->cover_image))
+        : url('/public/uploads/logo.png');
+    $publishedAt = ($article->published_at ?? $article->created_at)?->toAtomString();
+    $modifiedAt  = ($article->updated_at ?? $article->published_at ?? $article->created_at)?->toAtomString();
+
+    $blogPosting = [
+        '@context'         => 'https://schema.org',
+        '@type'            => 'NewsArticle',
+        'headline'         => $article->title,
+        'description'      => $article->meta_desc ?: $article->excerpt,
+        'image'            => $articleImg,
+        'datePublished'    => $publishedAt,
+        'dateModified'     => $modifiedAt,
+        'wordCount'        => str_word_count(strip_tags((string) $article->body)),
+        'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => route('article', $article->slug)],
+        'author'           => array_filter([
+            '@type' => 'Person',
+            'name'  => $article->author?->name ?? $siteName . ' Desk',
+            'url'   => $article->author ? route('author', $article->author->id) : null,
+        ]),
+        'publisher'        => [
+            '@type' => 'Organization',
+            'name'  => $siteName,
+            'logo'  => ['@type' => 'ImageObject', 'url' => url('/public/uploads/logo.png')],
+        ],
+    ];
+    if ($article->category) {
+        $blogPosting['articleSection'] = $article->category->name;
+    }
+    if (is_array($article->tags) && count($article->tags)) {
+        $blogPosting['keywords'] = implode(', ', $article->tags);
+    }
+
+    $crumbs = [['name' => 'Home', 'item' => url('/')]];
+    if ($article->category) {
+        $crumbs[] = ['name' => $article->category->name, 'item' => route('category', $article->category->slug)];
+    }
+    $crumbs[] = ['name' => $article->title, 'item' => route('article', $article->slug)];
+    $breadcrumb = [
+        '@context'        => 'https://schema.org',
+        '@type'           => 'BreadcrumbList',
+        'itemListElement' => collect($crumbs)->map(fn ($c, $i) => [
+            '@type'    => 'ListItem',
+            'position' => $i + 1,
+            'name'     => $c['name'],
+            'item'     => $c['item'],
+        ])->values()->all(),
+    ];
+@endphp
+<script type="application/ld+json">
+{!! json_encode($blogPosting, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+</script>
+<script type="application/ld+json">
+{!! json_encode($breadcrumb, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+</script>
+@endpush
+
+@push('og_meta')
+<meta property="article:published_time" content="{{ $publishedAt }}">
+<meta property="article:modified_time" content="{{ $modifiedAt }}">
+@if($article->author?->name)
+<meta property="article:author" content="{{ $article->author->name }}">
+@endif
+@if($article->category)
+<meta property="article:section" content="{{ $article->category->name }}">
+@endif
+@if(is_array($article->tags))
+@foreach($article->tags as $tag)
+<meta property="article:tag" content="{{ $tag }}">
+@endforeach
+@endif
+@endpush
 
 @section('content')
 <div class="article-wrap">
@@ -11,7 +97,7 @@
 
     <div class="art-hero-img" style="background:{{ $article->cover_bg }}">
       @if($article->cover_image)
-        <img src="{{ $article->cover_image }}" alt="{{ $article->title }}">
+        <img src="{{ $article->cover_image }}" alt="{{ $article->title }}" fetchpriority="high" decoding="async">
       @else
         <span style="position:relative;z-index:1">{{ $article->cover_emoji }}</span>
       @endif
@@ -33,7 +119,13 @@
     <div class="art-byline">
       <div class="byline-av">✍️</div>
       <div>
-        <div class="byline-name">{{ $article->author?->name ?? 'ADT Sports Desk' }}</div>
+        <div class="byline-name">
+        @if($article->author)
+          <a href="{{ route('author', $article->author->id) }}" style="color:inherit" rel="author">{{ $article->author->name }}</a>
+        @else
+          ADT Sports Desk
+        @endif
+      </div>
         <div class="byline-info">{{ $article->formatted_date }} · {{ $article->read_time }} read · {{ number_format($article->views) }} views</div>
       </div>
       <div class="byline-actions">
@@ -46,7 +138,7 @@
     @if($article->tags && count($article->tags))
     <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:28px">
       @foreach($article->tags as $tag)
-        <a href="{{ route('search', ['q' => $tag]) }}" class="tag" style="font-size:11px">{{ $tag }}</a>
+        <a href="{{ route('tag', $tag) }}" class="tag" style="font-size:11px">{{ $tag }}</a>
       @endforeach
     </div>
     @endif
@@ -55,6 +147,21 @@
     <div class="art-body" id="artBody">
       {!! $article->body !!}
     </div>
+
+    {{-- About the author (E-E-A-T) --}}
+    @if($article->author)
+    <div class="widget" style="margin-top:36px;display:flex;gap:14px;align-items:flex-start">
+      <div class="byline-av" style="width:46px;height:46px;font-size:18px">✍️</div>
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink3);margin-bottom:3px">Written by</div>
+        <a href="{{ route('author', $article->author->id) }}" rel="author" style="font-family:var(--display);font-size:17px;font-weight:700;color:var(--ink)">{{ $article->author->name }}</a>
+        @if($article->author->bio)
+          <p style="font-size:13.5px;line-height:1.6;color:var(--ink2);margin-top:6px">{{ $article->author->bio }}</p>
+        @endif
+        <a href="{{ route('author', $article->author->id) }}" style="font-size:12.5px;font-weight:600;color:var(--brand);margin-top:8px;display:inline-block">More from {{ $article->author->name }} →</a>
+      </div>
+    </div>
+    @endif
 
     {{-- Related articles --}}
     @if($related->count())
@@ -70,7 +177,7 @@
         <a href="{{ route('article', $r->slug) }}" class="card-box" style="text-decoration:none">
           <div class="cb-thumb" style="background:{{ $r->cover_bg }}">
             @if($r->cover_image)
-              <img src="{{ $r->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="">
+              <img src="{{ $r->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $r->title }}" loading="lazy" decoding="async">
             @else
               {{ $r->cover_emoji }}
             @endif
@@ -78,7 +185,7 @@
           @if($r->category)
             <span class="cb-cat" style="color:{{ $r->category->color }}">{{ $r->category->name }}</span>
           @endif
-          <div class="cb-title">{{ $r->title }}</div>
+          <h2 class="cb-title">{{ $r->title }}</h2>
           <div class="cb-meta">{{ $r->formatted_date }}</div>
         </a>
         @endforeach
@@ -117,7 +224,7 @@
         <a href="{{ route('article', $t->slug) }}" class="card-num" style="text-decoration:none">
           <div style="width:52px;height:52px;border-radius:6px;background:{{ $t->cover_bg }};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden">
             @if($t->cover_image)
-              <img src="{{ $t->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="">
+              <img src="{{ $t->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $t->title }}" loading="lazy" decoding="async">
             @else
               {{ $t->cover_emoji }}
             @endif

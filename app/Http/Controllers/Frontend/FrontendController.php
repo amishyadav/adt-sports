@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Article, Category, Setting};
+use App\Models\{Article, Category, Setting, User};
 use Illuminate\Http\Request;
 
 class FrontendController extends Controller
@@ -66,6 +66,40 @@ class FrontendController extends Controller
 
         return view('frontend.category', array_merge($this->shared(), compact(
             'category','articles','trending'
+        )));
+    }
+
+    public function author(User $user)
+    {
+        $perPage  = (int) Setting::get('articles_per_page', 10);
+        $articles = Article::with(['category','author'])
+            ->published()->where('author_id', $user->id)
+            ->latest('published_at')->paginate($perPage);
+
+        // Avoid thin/empty author pages being indexed.
+        abort_if($articles->total() === 0, 404);
+
+        $trending = Article::with('category')->published()->orderByDesc('views')->limit(5)->get();
+
+        return view('frontend.author', array_merge($this->shared(), compact(
+            'user','articles','trending'
+        )));
+    }
+
+    public function tag(string $tag)
+    {
+        $perPage  = (int) Setting::get('articles_per_page', 10);
+        $articles = Article::with(['category','author'])
+            ->published()->whereJsonContains('tags', $tag)
+            ->latest('published_at')->paginate($perPage);
+
+        // Avoid thin/empty tag pages being indexed.
+        abort_if($articles->total() === 0, 404);
+
+        $trending = Article::with('category')->published()->orderByDesc('views')->limit(5)->get();
+
+        return view('frontend.tag', array_merge($this->shared(), compact(
+            'tag','articles','trending'
         )));
     }
 

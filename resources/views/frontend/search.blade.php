@@ -1,5 +1,8 @@
 @extends('layouts.frontend')
-@section('title', $q ? "Search: {$q}" : 'Search' . ' — ' . ($settings['site_name'] ?? 'ADT Sports'))
+@php $seoSite = $settings['site_name'] ?? 'ADT Sports'; @endphp
+@section('title', $q ? "Search: {$q} — {$seoSite}" : "Search — {$seoSite}")
+{{-- Search result pages are thin/duplicate content — keep out of the index but follow links --}}
+@section('robots', 'noindex, follow')
 
 @section('content')
 <div class="wrap" style="padding-top:40px">
@@ -41,7 +44,7 @@
           <span class="cr-cat" style="{{ $a->category ? 'color:'.$a->category->color : '' }}">
             {{ $a->category?->name ?? 'Article' }}
           </span>
-          <div class="cr-title">{{ $a->title }}</div>
+          <h2 class="cr-title">{{ $a->title }}</h2>
           @if($a->excerpt)<div class="cr-excerpt">{{ $a->excerpt }}</div>@endif
           <div class="cr-meta">
             <span>{{ $a->author?->name ?? 'ADT Sports' }}</span>
@@ -52,7 +55,7 @@
           </div>
         </div>
         <div class="cr-thumb" style="background:{{ $a->cover_bg }}">
-          @if($a->cover_image)<img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="">
+          @if($a->cover_image)<img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
           @else {{ $a->cover_emoji }} @endif
         </div>
       </a>

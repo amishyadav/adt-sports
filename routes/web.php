@@ -9,12 +9,21 @@ use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Frontend\FrontendController;
+use App\Http\Controllers\Frontend\SeoController;
 
 /* ─── PUBLIC FRONTEND ──────────────────────────────────── */
 Route::get('/',                  [FrontendController::class, 'home'])->name('home');
 Route::get('/article/{slug}',    [FrontendController::class, 'article'])->name('article');
 Route::get('/category/{slug}',   [FrontendController::class, 'category'])->name('category');
+Route::get('/author/{user}',     [FrontendController::class, 'author'])->name('author');
+Route::get('/tag/{tag}',         [FrontendController::class, 'tag'])->name('tag')->where('tag', '[^/]+');
 Route::get('/search',            [FrontendController::class, 'search'])->name('search');
+
+/* ─── SEO (robots.txt + sitemap.xml + feed) ────────────── */
+Route::get('/robots.txt',        [SeoController::class, 'robots'])->name('robots');
+Route::get('/sitemap.xml',       [SeoController::class, 'sitemap'])->name('sitemap');
+Route::get('/news-sitemap.xml',  [SeoController::class, 'newsSitemap'])->name('news-sitemap');
+Route::get('/feed.xml',          [SeoController::class, 'feed'])->name('feed');
 
 /* ─── AUTH ─────────────────────────────────────────────── */
 Route::get('/admin/login',  [LoginController::class, 'showLogin'])->name('admin.login');

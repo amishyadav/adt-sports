@@ -1,8 +1,21 @@
 @extends('layouts.frontend')
 @section('title', ($settings['site_name'] ?? 'ADT Sports'))
+{{-- When filtered via ?category=, consolidate to the canonical category page to avoid duplicate content --}}
+@if($catSlug && $categories->firstWhere('slug', $catSlug))
+  @section('canonical', route('category', $catSlug))
+@else
+  {{-- Self-reference paginated pages (incl. ?page=N) so deeper pages stay indexable --}}
+  @section('canonical', $articles->currentPage() > 1 ? $articles->url($articles->currentPage()) : route('home'))
+  @push('head_links')
+    @if($articles->previousPageUrl())<link rel="prev" href="{{ $articles->previousPageUrl() }}">@endif
+    @if($articles->nextPageUrl())<link rel="next" href="{{ $articles->nextPageUrl() }}">@endif
+  @endpush
+@endif
 
 @section('content')
 <div class="wrap">
+
+  <h1 class="sr-only">{{ $settings['site_name'] ?? 'ADT Sports' }} — {{ $settings['site_tagline'] ?? "India's #1 Kabaddi Media Platform" }}</h1>
 
   {{-- ── HERO ─────────────────────────────────────────────── --}}
   @if($heroLead)
@@ -10,7 +23,7 @@
     <a href="{{ route('article', $heroLead->slug) }}" class="hero-lead">
       <div class="hero-lead-art" style="background:{{ $heroLead->cover_bg }}">
         @if($heroLead->cover_image)
-          <img src="{{ $heroLead->cover_image }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="{{ $heroLead->title }}">
+          <img src="{{ $heroLead->cover_image }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="{{ $heroLead->title }}" fetchpriority="high" decoding="async">
         @else
           {{ $heroLead->cover_emoji }}
         @endif
@@ -20,7 +33,7 @@
         @if($heroLead->category)
           <span class="cat-pill">{{ $heroLead->category->name }}</span>
         @endif
-        <div class="hero-lead-title">{{ $heroLead->title }}</div>
+        <h2 class="hero-lead-title">{{ $heroLead->title }}</h2>
         <div class="hero-lead-meta">
           <span>{{ $heroLead->author?->name ?? 'ADT Sports' }}</span>
           <span class="sep"></span>
@@ -36,14 +49,14 @@
       <a href="{{ route('article', $a->slug) }}" class="hero-stack-item">
         <div class="stack-thumb" style="background:{{ $a->cover_bg }}">
           @if($a->cover_image)
-            <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="">
+            <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
           @else
             {{ $a->cover_emoji }}
           @endif
         </div>
         <div>
           @if($a->category)<div class="stack-cat">{{ $a->category->name }}</div>@endif
-          <div class="stack-title">{{ $a->title }}</div>
+          <h3 class="stack-title">{{ $a->title }}</h3>
           <div class="stack-meta">{{ $a->formatted_date }} · {{ $a->read_time }} read</div>
         </div>
       </a>
@@ -83,7 +96,7 @@
           <span class="cr-cat" style="{{ $a->category ? 'color:'.$a->category->color : '' }}">
             {{ $a->category?->name ?? 'Article' }}
           </span>
-          <div class="cr-title">{{ $a->title }}</div>
+          <h2 class="cr-title">{{ $a->title }}</h2>
           @if($a->excerpt)
             <div class="cr-excerpt">{{ $a->excerpt }}</div>
           @endif
@@ -97,7 +110,7 @@
         </div>
         <div class="cr-thumb" style="background:{{ $a->cover_bg }}">
           @if($a->cover_image)
-            <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="">
+            <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
           @else
             {{ $a->cover_emoji }}
           @endif
@@ -119,7 +132,7 @@
         @foreach($articles->slice(5, 3) as $a)
         <a href="{{ route('article', $a->slug) }}" class="fs-item" style="text-decoration:none">
           <div class="fs-cat">{{ $a->breaking ? '🔴 Breaking' : ($a->category?->name ?? 'Article') }}</div>
-          <div class="fs-title">{{ $a->title }}</div>
+          <h3 class="fs-title">{{ $a->title }}</h3>
           <div class="fs-meta">{{ $a->read_time }} read · {{ $a->formatted_date }}</div>
         </a>
         @endforeach
@@ -139,7 +152,7 @@
         <a href="{{ route('article', $a->slug) }}" class="card-box" style="text-decoration:none">
           <div class="cb-thumb" style="background:{{ $a->cover_bg }}">
             @if($a->cover_image)
-              <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="">
+              <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
             @else
               {{ $a->cover_emoji }}
             @endif
@@ -147,7 +160,7 @@
           <span class="cb-cat" style="{{ $a->category ? 'color:'.$a->category->color : '' }}">
             {{ $a->category?->name ?? '' }}
           </span>
-          <div class="cb-title">{{ $a->title }}</div>
+          <h3 class="cb-title">{{ $a->title }}</h3>
           @if($a->excerpt)<div class="cb-excerpt">{{ $a->excerpt }}</div>@endif
           <div class="cb-meta">{{ $a->formatted_date }} · {{ $a->read_time }} read</div>
         </a>
