@@ -1,4 +1,5 @@
 @extends('layouts.frontend')
+@include('partials.pagination_seo', ['paginator' => $articles])
 @php $seoSite = $settings['site_name'] ?? 'ADT Sports'; @endphp
 @section('title', $q ? "Search: {$q} — {$seoSite}" : "Search — {$seoSite}")
 {{-- Search result pages are thin/duplicate content — keep out of the index but follow links --}}
@@ -39,31 +40,10 @@
       </div>
 
       @foreach($articles as $a)
-      <a href="{{ route('article', $a->slug) }}" class="card-row" style="text-decoration:none;display:grid">
-        <div>
-          <span class="cr-cat" style="{{ $a->category ? 'color:'.$a->category->color : '' }}">
-            {{ $a->category?->name ?? 'Article' }}
-          </span>
-          <h2 class="cr-title">{{ $a->title }}</h2>
-          @if($a->excerpt)<div class="cr-excerpt">{{ $a->excerpt }}</div>@endif
-          <div class="cr-meta">
-            <span>{{ $a->author?->name ?? 'ADT Sports' }}</span>
-            <span class="sep"></span>
-            <span>{{ $a->formatted_date }}</span>
-            <span class="sep"></span>
-            <span>{{ $a->read_time }} read</span>
-          </div>
-        </div>
-        <div class="cr-thumb" style="background:{{ $a->cover_bg }}">
-          @if($a->cover_image)<img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
-          @else {{ $a->cover_emoji }} @endif
-        </div>
-      </a>
+      @include('frontend.partials.article_row', ['a' => $a])
       @endforeach
 
-      @if($articles->hasPages())
-        <div class="pagination-wrap">{{ $articles->links() }}</div>
-      @endif
+      @include('frontend.partials.load_more', ['paginator' => $articles])
 
       @else
       <div style="text-align:center;padding:64px 20px;color:var(--ink3)">

@@ -32,7 +32,7 @@
               <form action="{{ route('admin.users.destroy',$u) }}" method="POST" style="display:inline"
                     onsubmit="return confirm('Remove {{ $u->name }} from the team?')">
                 @csrf @method('DELETE')
-                <button type="submit" class="btn btn-danger btn-sm">🗑️ Remove</button>
+                <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-user-xmark"></i> Remove</button>
               </form>
             @else
               <span style="font-size:12px;color:var(--ink3)">You</span>
@@ -47,7 +47,7 @@
   </div>
 
   <div class="panel-card">
-    <h4>Add Team Member</h4>
+    <h4>Invite Team Member</h4>
     <form action="{{ route('admin.users.store') }}" method="POST">
       @csrf
       <div class="field">
@@ -58,18 +58,15 @@
         <label>Email Address *</label>
         <input type="email" name="email" required placeholder="email@example.com" value="{{ old('email') }}">
       </div>
-      <div class="field">
-        <label>Password *</label>
-        <input type="password" name="password" required placeholder="Min 8 characters">
-      </div>
-      <div class="field" style="margin-bottom:16px">
+      <div class="field" style="margin-bottom:14px">
         <label>Role</label>
         <select name="role">
           <option value="editor">Editor — Write & manage own articles</option>
           <option value="admin">Admin — Full access to everything</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%">+ Add Member</button>
+      <button type="submit" class="btn btn-primary" style="width:100%"><i class="fa-solid fa-paper-plane"></i> Send Invite</button>
+      <div class="field-hint" style="margin-top:10px">We'll email them a secure link to set their own password — you never handle it.</div>
     </form>
   </div>
 

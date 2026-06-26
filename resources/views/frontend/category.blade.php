@@ -1,4 +1,5 @@
 @extends('layouts.frontend')
+@include('partials.pagination_seo', ['paginator' => $articles])
 @section('title', $category->name . ' — ' . ($settings['site_name'] ?? 'ADT Sports'))
 @section('meta_desc', $category->description ?: "Latest {$category->name} coverage on " . ($settings['site_name'] ?? 'ADT Sports'))
 {{-- Self-reference paginated pages (incl. ?page=N) so deeper pages stay indexable --}}
@@ -18,7 +19,7 @@
         ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => url('/')],
         ['@type' => 'ListItem', 'position' => 2, 'name' => $category->name, 'item' => route('category', $category->slug)],
     ],
-], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) !!}
 </script>
 @endpush
 
@@ -44,24 +45,7 @@
   <div class="content-grid">
     <main>
       @forelse($articles as $a)
-      <a href="{{ route('article', $a->slug) }}" class="card-row" style="text-decoration:none;display:grid">
-        <div>
-          <span class="cr-cat" style="color:{{ $category->color }}">{{ $category->name }}</span>
-          <h2 class="cr-title">{{ $a->title }}</h2>
-          @if($a->excerpt)<div class="cr-excerpt">{{ $a->excerpt }}</div>@endif
-          <div class="cr-meta">
-            <span>{{ $a->author?->name ?? 'ADT Sports' }}</span>
-            <span class="sep"></span>
-            <span>{{ $a->formatted_date }}</span>
-            <span class="sep"></span>
-            <span>{{ $a->read_time }} read</span>
-          </div>
-        </div>
-        <div class="cr-thumb" style="background:{{ $a->cover_bg }}">
-          @if($a->cover_image)<img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
-          @else {{ $a->cover_emoji }} @endif
-        </div>
-      </a>
+      @include('frontend.partials.article_row', ['a' => $a, 'rowCat' => $category])
       @empty
       <div style="text-align:center;padding:64px 20px;color:var(--ink3)">
         <div style="font-size:44px;margin-bottom:14px">📭</div>
@@ -70,9 +54,7 @@
       </div>
       @endforelse
 
-      @if($articles->hasPages())
-        <div class="pagination-wrap">{{ $articles->links() }}</div>
-      @endif
+      @include('frontend.partials.load_more', ['paginator' => $articles])
     </main>
 
     <aside class="sidebar-col">
@@ -89,18 +71,6 @@
           </div>
         </a>
         @endforeach
-      </div>
-      <div class="widget">
-        <div class="sec-hd" style="margin-bottom:14px">
-          <div class="sec-hd-left"><div class="sec-hd-bar"></div><span class="sec-hd-label">Categories</span></div>
-        </div>
-        <div class="tag-cloud">
-          @foreach($categories as $cat)
-            <a href="{{ route('category', $cat->slug) }}" class="tag" style="{{ $cat->slug===$category->slug ? 'background:var(--brand-soft);border-color:var(--brand);color:var(--brand)' : '' }}">
-              {{ $cat->name }}
-            </a>
-          @endforeach
-        </div>
       </div>
     </aside>
   </div>

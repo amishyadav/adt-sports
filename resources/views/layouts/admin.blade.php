@@ -6,6 +6,8 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title','Admin') — ADT Sports</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{{-- Font Awesome — needed for the category icon picker (and any FA icons in admin views). --}}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer">
 <style>
 :root{--bg:#0F0E0D;--panel:#161412;--card:#1C1917;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.04);--ink:#F5F0EB;--ink2:#A8A09A;--ink3:#6B6560;--brand:#D4420A;--brand-h:#B83808;--green:#16A34A;--amber:#D97706;--red:#DC2626;--sidebar:230px;--topbar:56px}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}html{font-size:14px}
@@ -21,6 +23,8 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;border:none;backgroun
 .tl-right{margin-left:auto;display:flex;align-items:center;gap:10px}
 .user-chip{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:5px 10px}
 .user-av{width:26px;height:26px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+/* Equal-height top-right controls (View Site / user chip / Sign Out) */
+.tl-right .btn,.tl-right .user-chip,.tl-right .logout-btn{height:36px;display:inline-flex;align-items:center;border-radius:8px}
 
 /* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-decoration:none;border:none}
@@ -179,6 +183,27 @@ nav[aria-label="Pagination"] { padding:12px 16px; border-top:1px solid var(--bor
 nav[aria-label="Pagination"] span, nav[aria-label="Pagination"] a { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:5px;font-size:12px;background:var(--panel);border:1px solid var(--border);color:var(--ink2);margin:0 2px;transition:all .15s; }
 nav[aria-label="Pagination"] a:hover { border-color:var(--brand);color:var(--brand); }
 nav[aria-label="Pagination"] span[aria-current] { background:var(--brand);border-color:var(--brand);color:#fff; }
+nav[aria-label="Pagination"] .pg-disabled { opacity:.4; }
+nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
+
+/* ── UI POLISH (icons + subtle depth; no layout changes) ── */
+.nav-icon i{font-size:15px}
+.nav-item{position:relative}
+.nav-item.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--brand)}
+.stat-card{transition:border-color .18s,transform .18s,box-shadow .18s}
+.stat-card:hover{border-color:rgba(212,66,10,.28);transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.22)}
+.table-wrap,.panel-card,.settings-section{box-shadow:0 1px 3px rgba(0,0,0,.16)}
+.btn:active,.logout-btn:active{transform:translateY(1px)}
+.ss-hd i,.page-hd i{color:var(--brand)}
+.media-thumb{color:var(--ink3)}
+.drop-icon{color:var(--brand)}
+.empty-state i{font-size:40px;color:var(--ink3);margin-bottom:12px;display:block}
+/* Status badges → soft pills with a leading status dot */
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 9px;line-height:1;vertical-align:middle}
+.badge-published::before,.badge-draft::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+/* Table readability — subtle zebra striping + brand-tinted hover */
+.table-wrap tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
+.table-wrap tbody tr:hover td{background:rgba(212,66,10,.06)}
 </style>
 @stack('styles')
 </head>
@@ -190,13 +215,13 @@ nav[aria-label="Pagination"] span[aria-current] { background:var(--brand);border
       <span class="tl-name"><em>ADT</em> Sports</span>
     </a>
     <div class="tl-right">
-      <a href="{{ route('home') }}" target="_blank" class="btn btn-ghost btn-sm">🌐 View Site</a>
+      <a href="{{ route('home') }}" target="_blank" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> View Site</a>
       <div class="user-chip">
         <div class="user-av">{{ auth()->user()->initials }}</div>
         <span style="font-size:13px;font-weight:500">{{ auth()->user()->name }}</span>
       </div>
       <form action="{{ route('admin.logout') }}" method="POST" style="display:inline">
-        @csrf <button type="submit" class="logout-btn">Sign Out</button>
+        @csrf <button type="submit" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</button>
       </form>
     </div>
   </div>
@@ -206,51 +231,60 @@ nav[aria-label="Pagination"] span[aria-current] { background:var(--brand);border
       <div class="nav-section">
         <div class="nav-sec-label">Main</div>
         <a href="{{ route('admin.dashboard') }}" class="nav-item {{ request()->routeIs('admin.dashboard') ? 'active':'' }}">
-          <span class="nav-icon">📊</span> Dashboard
+          <span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span> Dashboard
         </a>
         <a href="{{ route('admin.articles.index') }}" class="nav-item {{ request()->routeIs('admin.articles.*') && !request()->routeIs('admin.articles.create') ? 'active':'' }}">
-          <span class="nav-icon">📰</span> All Articles
+          <span class="nav-icon"><i class="fa-solid fa-newspaper"></i></span> All Articles
           @php $dc = \App\Models\Article::where('status','draft')->count() @endphp
           @if($dc) <span class="nav-badge">{{ $dc }}</span> @endif
         </a>
         <a href="{{ route('admin.articles.create') }}" class="nav-item {{ request()->routeIs('admin.articles.create') ? 'active':'' }}">
-          <span class="nav-icon">✍️</span> Write Article
+          <span class="nav-icon"><i class="fa-solid fa-pen-nib"></i></span> Write Article
         </a>
       </div>
       <div class="nav-section">
         <div class="nav-sec-label">Content</div>
         <a href="{{ route('admin.categories.index') }}" class="nav-item {{ request()->routeIs('admin.categories.*') ? 'active':'' }}">
-          <span class="nav-icon">🏷️</span> Categories
+          <span class="nav-icon"><i class="fa-solid fa-tag"></i></span> Categories
         </a>
         <a href="{{ route('admin.media.index') }}" class="nav-item {{ request()->routeIs('admin.media.*') ? 'active':'' }}">
-          <span class="nav-icon">🖼️</span> Media Library
+          <span class="nav-icon"><i class="fa-solid fa-images"></i></span> Media Library
         </a>
       </div>
       <div class="nav-section">
         <div class="nav-sec-label">Admin</div>
         @if(auth()->user()->isAdmin())
+        <a href="{{ route('admin.comments.index') }}" class="nav-item {{ request()->routeIs('admin.comments.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-comments"></i></span> Comments
+        </a>
         <a href="{{ route('admin.users.index') }}" class="nav-item {{ request()->routeIs('admin.users.*') ? 'active':'' }}">
-          <span class="nav-icon">👥</span> Team Members
+          <span class="nav-icon"><i class="fa-solid fa-users"></i></span> Team Members
+        </a>
+        <a href="{{ route('admin.subscribers.index') }}" class="nav-item {{ request()->routeIs('admin.subscribers.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-envelope"></i></span> Subscribers
+        </a>
+        <a href="{{ route('admin.activity.index') }}" class="nav-item {{ request()->routeIs('admin.activity.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span> Activity Log
+        </a>
+        <a href="{{ route('admin.settings.index') }}" class="nav-item {{ request()->routeIs('admin.settings.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-gear"></i></span> Settings
         </a>
         @endif
-        <a href="{{ route('admin.settings.index') }}" class="nav-item {{ request()->routeIs('admin.settings.*') ? 'active':'' }}">
-          <span class="nav-icon">⚙️</span> Settings
-        </a>
         <a href="{{ route('admin.settings.index') }}#profile" class="nav-item">
-          <span class="nav-icon">👤</span> My Profile
+          <span class="nav-icon"><i class="fa-solid fa-circle-user"></i></span> My Profile
         </a>
       </div>
     </nav>
 
     <div class="content-area">
       @if(session('success'))
-        <div class="alert alert-success">✅ {{ session('success') }}</div>
+        <div class="alert alert-success"><i class="fa-solid fa-circle-check"></i> {{ session('success') }}</div>
       @endif
       @if(session('error'))
-        <div class="alert alert-error">❌ {{ session('error') }}</div>
+        <div class="alert alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ session('error') }}</div>
       @endif
       @if($errors->any())
-        <div class="alert alert-error">❌ {{ $errors->first() }}</div>
+        <div class="alert alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ $errors->first() }}</div>
       @endif
       @yield('content')
     </div>

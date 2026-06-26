@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Article, Category, Setting, User};
+use App\Models\{Article, Category, Setting, Tag, User};
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -38,74 +38,54 @@ class SeoController extends Controller
     public function sitemap(): Response
     {
         $xml = Cache::remember('seo.sitemap', 3600, function () {
-            $urls = [];
+            $out  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+            $out .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+                  . ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
 
-            $urls[] = [
+            $out .= $this->urlNode([
                 'loc'        => route('home'),
                 'changefreq' => 'hourly',
                 'priority'   => '1.0',
-            ];
+            ]);
 
             foreach (Category::orderBy('name')->get() as $category) {
-                $urls[] = [
+                $out .= $this->urlNode([
                     'loc'        => route('category', $category->slug),
                     'lastmod'    => optional($category->updated_at)->toAtomString(),
                     'changefreq' => 'daily',
                     'priority'   => '0.7',
-                ];
+                ]);
             }
 
-            foreach (Article::published()->latest('published_at')->get() as $article) {
-                $urls[] = [
+            // Stream articles (memory-safe at scale).
+            Article::published()->latest('published_at')->lazy()->each(function ($article) use (&$out) {
+                $out .= $this->urlNode([
                     'loc'        => route('article', $article->slug),
                     'lastmod'    => optional($article->updated_at ?? $article->published_at)->toAtomString(),
                     'changefreq' => 'weekly',
                     'priority'   => '0.8',
                     'image'      => $this->absoluteUrl($article->cover_image),
-                ];
-            }
+                ]);
+            });
 
             // Author archive pages (only authors with published articles).
             foreach (User::whereHas('articles', fn ($q) => $q->published())->get() as $author) {
-                $urls[] = [
+                $out .= $this->urlNode([
                     'loc'        => route('author', $author->id),
                     'changefreq' => 'weekly',
                     'priority'   => '0.5',
-                ];
+                ]);
             }
 
-            // Tag archive pages (distinct tags across published articles).
-            $tags = Article::published()->pluck('tags')
-                ->flatMap(fn ($t) => is_array($t) ? $t : [])
-                ->map(fn ($t) => trim((string) $t))
-                ->filter()
-                ->unique();
-            foreach ($tags as $tag) {
-                $urls[] = [
+            // Tag archive pages (only tags attached to a published article).
+            foreach (Tag::whereHas('articles', fn ($q) => $q->published())->orderBy('name')->get() as $tag) {
+                $out .= $this->urlNode([
                     'loc'        => route('tag', $tag),
                     'changefreq' => 'weekly',
                     'priority'   => '0.5',
-                ];
+                ]);
             }
 
-            $out  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-            $out .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
-                  . ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' . "\n";
-            foreach ($urls as $url) {
-                $out .= "  <url>\n";
-                $out .= '    <loc>' . e($url['loc']) . "</loc>\n";
-                if (! empty($url['lastmod'])) {
-                    $out .= '    <lastmod>' . e($url['lastmod']) . "</lastmod>\n";
-                }
-                $out .= '    <changefreq>' . $url['changefreq'] . "</changefreq>\n";
-                $out .= '    <priority>' . $url['priority'] . "</priority>\n";
-                if (! empty($url['image'])) {
-                    $out .= "    <image:image>\n";
-                    $out .= '      <image:loc>' . e($url['image']) . "</image:loc>\n";
-                    $out .= "    </image:image>\n";
-                }
-                $out .= "  </url>\n";
-            }
             $out .= '</urlset>';
 
             return $out;
@@ -203,6 +183,29 @@ class SeoController extends Controller
 
         return response($xml, 200)
             ->header('Content-Type', 'application/rss+xml; charset=UTF-8');
+    }
+
+    /**
+     * Render a single <url> node for the sitemap from a loc/lastmod/changefreq/
+     * priority/image array.
+     */
+    private function urlNode(array $url): string
+    {
+        $node  = "  <url>\n";
+        $node .= '    <loc>' . e($url['loc']) . "</loc>\n";
+        if (! empty($url['lastmod'])) {
+            $node .= '    <lastmod>' . e($url['lastmod']) . "</lastmod>\n";
+        }
+        $node .= '    <changefreq>' . $url['changefreq'] . "</changefreq>\n";
+        $node .= '    <priority>' . $url['priority'] . "</priority>\n";
+        if (! empty($url['image'])) {
+            $node .= "    <image:image>\n";
+            $node .= '      <image:loc>' . e($url['image']) . "</image:loc>\n";
+            $node .= "    </image:image>\n";
+        }
+        $node .= "  </url>\n";
+
+        return $node;
     }
 
     /**

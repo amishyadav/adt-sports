@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+
+    env:
+      # Static key just for CI; the real app key lives in the deploy environment.
+      APP_KEY: base64:F39Kr4HRqnDSiis+xQByZn6X0pZDR9zSfZlbS9kd9wQ=
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, pdo_sqlite, sqlite3, mbstring, dom, fileinfo, bcmath
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Build front-end assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run test suite
+        run: vendor/bin/phpunit
+
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+
+    env:
+      APP_KEY: base64:F39Kr4HRqnDSiis+xQByZn6X0pZDR9zSfZlbS9kd9wQ=
+      APP_ENV: production
+      APP_DEBUG: 'false'
+      APP_URL: http://127.0.0.1:8000
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      RESPONSE_CACHE_DRIVER: file
+      ADMIN_PASSWORD: ci-temporary-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, pdo_sqlite, sqlite3, mbstring, dom, fileinfo, bcmath
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies & build
+        run: |
+          composer install --prefer-dist --no-interaction --no-progress
+          npm ci
+          npm run build
+
+      - name: Prepare app
+        run: |
+          cp .env.example .env
+          touch "$DB_DATABASE"
+          php artisan migrate --seed --force
+          php artisan config:cache
+
+      - name: Serve app & run Lighthouse CI
+        run: |
+          php artisan serve --host=127.0.0.1 --port=8000 &
+          SERVER_PID=$!
+          npx --yes wait-on http://127.0.0.1:8000/up --timeout 60000
+          npx --yes @lhci/cli@0.13.x autorun
+          kill $SERVER_PID || true
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci
+          if-no-files-found: ignore

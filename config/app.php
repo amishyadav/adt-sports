@@ -5,6 +5,11 @@ return [
     'env'      => env('APP_ENV', 'production'),
     'debug'    => (bool) env('APP_DEBUG', false),
     'url'      => env('APP_URL', 'http://localhost'),
+
+    // Single public hostname all traffic is redirected to (see ForceCanonicalHost).
+    // MUST equal the host in APP_URL. Leave unset to disable (local/dev/test).
+    'canonical_host' => env('CANONICAL_HOST'),
+
     'timezone' => 'Asia/Kolkata',
     'locale'   => 'en',
     'fallback_locale' => 'en',

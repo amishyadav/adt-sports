@@ -7,18 +7,21 @@
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('general',this)">🌐 General</button>
-  <button class="tab-btn" onclick="switchTab('social',this)">📱 Social Media</button>
-  <button class="tab-btn" onclick="switchTab('profile',this)" id="profileTabBtn">👤 My Profile</button>
+  @if(auth()->user()->isAdmin())
+  <button class="tab-btn active" onclick="switchTab('general',this)"><i class="fa-solid fa-sliders"></i> General</button>
+  <button class="tab-btn" onclick="switchTab('social',this)"><i class="fa-solid fa-share-nodes"></i> Social Media</button>
+  @endif
+  <button class="tab-btn {{ auth()->user()->isAdmin() ? '' : 'active' }}" onclick="switchTab('profile',this)" id="profileTabBtn"><i class="fa-solid fa-circle-user"></i> My Profile</button>
 </div>
 
+@if(auth()->user()->isAdmin())
 {{-- GENERAL TAB --}}
 <div id="tab-general" class="tab-pane active">
   <form action="{{ route('admin.settings.update') }}" method="POST">
     @csrf @method('PUT')
 
     <div class="settings-section">
-      <div class="ss-hd">🌐 Site Information</div>
+      <div class="ss-hd"><i class="fa-solid fa-circle-info"></i> Site Information</div>
       <div class="ss-body">
         <div class="settings-row">
           <div><div class="sr-label">Site Name</div><div class="sr-desc">Shown in browser tab and navbar</div></div>
@@ -44,6 +47,18 @@
             value="{{ $settings['site_phone'] ?? '' }}" placeholder="+91 9979269732">
         </div>
         <div class="settings-row">
+          <div><div class="sr-label">WhatsApp Number</div><div class="sr-desc">Digits only — shown as a wa.me link</div></div>
+          <input type="text" name="site_whatsapp"
+            style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:14px;color:var(--ink);outline:none"
+            value="{{ $settings['site_whatsapp'] ?? '' }}" placeholder="919979269732">
+        </div>
+        <div class="settings-row">
+          <div><div class="sr-label">Address</div><div class="sr-desc">Shown in the footer contact block</div></div>
+          <input type="text" name="site_address"
+            style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:14px;color:var(--ink);outline:none"
+            value="{{ $settings['site_address'] ?? '' }}" placeholder="Jaipur, Rajasthan, India">
+        </div>
+        <div class="settings-row">
           <div><div class="sr-label">Footer Tagline</div><div class="sr-desc">Italic line shown in footer</div></div>
           <input type="text" name="footer_tagline"
             style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:14px;color:var(--ink);outline:none"
@@ -53,7 +68,7 @@
     </div>
 
     <div class="settings-section">
-      <div class="ss-hd">📢 Breaking News Ticker</div>
+      <div class="ss-hd"><i class="fa-solid fa-bullhorn"></i> Breaking News Ticker</div>
       <div class="ss-body">
         <div class="settings-row">
           <div>
@@ -68,7 +83,7 @@
     </div>
 
     <div class="settings-section">
-      <div class="ss-hd">📄 Article Display</div>
+      <div class="ss-hd"><i class="fa-solid fa-table-cells-large"></i> Article Display</div>
       <div class="ss-body">
         <div class="settings-row">
           <div><div class="sr-label">Articles Per Page</div><div class="sr-desc">Homepage pagination count</div></div>
@@ -79,7 +94,7 @@
       </div>
     </div>
 
-    <button type="submit" class="btn btn-primary btn-lg">💾 Save Settings</button>
+    <button type="submit" class="btn btn-primary btn-lg"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
   </form>
 </div>
 
@@ -88,11 +103,16 @@
   <form action="{{ route('admin.settings.update') }}" method="POST">
     @csrf @method('PUT')
     <div class="settings-section">
-      <div class="ss-hd">📱 Social Media Links</div>
+      <div class="ss-hd"><i class="fa-solid fa-share-nodes"></i> Social Media Links</div>
       <div class="ss-body">
-        @foreach(['facebook_url'=>'📘 Facebook URL','instagram_url'=>'📸 Instagram URL','youtube_url'=>'▶️ YouTube URL','twitter_url'=>'🐦 Twitter/X URL'] as $key=>$label)
+        @foreach([
+          'facebook_url'  => ['fa-brands fa-facebook', 'Facebook URL'],
+          'instagram_url' => ['fa-brands fa-instagram', 'Instagram URL'],
+          'youtube_url'   => ['fa-brands fa-youtube', 'YouTube URL'],
+          'twitter_url'   => ['fa-brands fa-x-twitter', 'Twitter / X URL'],
+        ] as $key => [$icon, $label])
         <div class="settings-row">
-          <div><div class="sr-label">{{ $label }}</div></div>
+          <div><div class="sr-label"><i class="{{ $icon }}"></i> {{ $label }}</div></div>
           <input type="url" name="{{ $key }}"
             style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 13px;font-size:14px;color:var(--ink);outline:none"
             value="{{ $settings[$key] ?? '' }}" placeholder="https://...">
@@ -100,16 +120,17 @@
         @endforeach
       </div>
     </div>
-    <button type="submit" class="btn btn-primary btn-lg">💾 Save Social Links</button>
+    <button type="submit" class="btn btn-primary btn-lg"><i class="fa-solid fa-floppy-disk"></i> Save Social Links</button>
   </form>
 </div>
+@endif
 
 {{-- PROFILE TAB --}}
-<div id="tab-profile" class="tab-pane">
+<div id="tab-profile" class="tab-pane {{ auth()->user()->isAdmin() ? '' : 'active' }}">
   <form action="{{ route('admin.profile.update') }}" method="POST">
     @csrf @method('PUT')
     <div class="settings-section">
-      <div class="ss-hd">👤 My Account — {{ auth()->user()->name }}</div>
+      <div class="ss-hd"><i class="fa-solid fa-circle-user"></i> My Account — {{ auth()->user()->name }}</div>
       <div class="ss-body">
         <div class="settings-row">
           <div><div class="sr-label">Display Name</div></div>
@@ -137,7 +158,7 @@
         </div>
       </div>
     </div>
-    <button type="submit" class="btn btn-primary btn-lg">✓ Update Profile</button>
+    <button type="submit" class="btn btn-primary btn-lg"><i class="fa-solid fa-check"></i> Update Profile</button>
   </form>
 </div>
 
@@ -145,12 +166,13 @@
 
 @push('scripts')
 <script>
-// Open profile tab directly if #profile hash
-if(window.location.hash==='#profile'){
+function activateTab(id){
+  if(!document.getElementById('tab-'+id)) return;
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('profileTabBtn').classList.add('active');
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
-  document.getElementById('tab-profile').classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  var btn = document.querySelector('.tab-btn[onclick*="\''+id+'\'"]');
+  if(btn) btn.classList.add('active');
 }
 function switchTab(id,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -158,5 +180,13 @@ function switchTab(id,btn){
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
 }
+// Open the tab named in the URL hash — on load AND when the hash changes while
+// already on this page (e.g. clicking "My Profile" in the sidebar from here).
+function tabFromHash(){
+  var h = (window.location.hash || '').replace('#','');
+  if(['general','social','profile'].indexOf(h) !== -1) activateTab(h);
+}
+tabFromHash();
+window.addEventListener('hashchange', tabFromHash);
 </script>
 @endpush

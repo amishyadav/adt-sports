@@ -4,7 +4,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Media extends Model
 {
-    protected $fillable = ['filename','original_name','mimetype','size','url','disk','uploaded_by'];
+    protected $fillable = ['filename','original_name','alt','mimetype','size','url','disk','uploaded_by'];
 
     public function uploader() { return $this->belongsTo(User::class, 'uploaded_by'); }
 

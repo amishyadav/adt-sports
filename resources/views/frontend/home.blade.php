@@ -1,4 +1,5 @@
 @extends('layouts.frontend')
+@include('partials.pagination_seo', ['paginator' => $articles])
 @section('title', ($settings['site_name'] ?? 'ADT Sports'))
 {{-- When filtered via ?category=, consolidate to the canonical category page to avoid duplicate content --}}
 @if($catSlug && $categories->firstWhere('slug', $catSlug))
@@ -25,7 +26,7 @@
         @if($heroLead->cover_image)
           <img src="{{ $heroLead->cover_image }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="{{ $heroLead->title }}" fetchpriority="high" decoding="async">
         @else
-          {{ $heroLead->cover_emoji }}
+          <x-cover-placeholder :article="$heroLead" />
         @endif
       </div>
       <div class="hero-lead-veil"></div>
@@ -51,7 +52,7 @@
           @if($a->cover_image)
             <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
           @else
-            {{ $a->cover_emoji }}
+            <x-cover-placeholder :article="$a" />
           @endif
         </div>
         <div>
@@ -65,17 +66,6 @@
   </div>
   @endif
 
-  {{-- ── CATEGORY TABS ────────────────────────────────────── --}}
-  <div class="cat-tabs">
-    <a href="{{ route('home') }}" class="ctab {{ !$catSlug ? 'active' : '' }}">All</a>
-    @foreach($categories as $cat)
-      <a href="{{ route('home', ['category' => $cat->slug]) }}"
-         class="ctab {{ $catSlug === $cat->slug ? 'active' : '' }}">
-        {{ $cat->name }}
-      </a>
-    @endforeach
-  </div>
-
   {{-- ── MAIN CONTENT + SIDEBAR ──────────────────────────── --}}
   <div class="content-grid">
     <main>
@@ -86,37 +76,28 @@
             {{ $catSlug ? ($categories->firstWhere('slug',$catSlug)?->name ?? 'Articles') : 'Latest Stories' }}
           </span>
         </div>
-        <a href="{{ route('search') }}" class="sec-hd-more">All Articles →</a>
+        @if($catSlug)
+          <a href="{{ route('category', $catSlug) }}" class="sec-hd-more">All {{ $categories->firstWhere('slug',$catSlug)?->name }} →</a>
+        @endif
       </div>
 
-      {{-- Article feed --}}
-      @forelse($articles->take(5) as $a)
-      <a href="{{ route('article', $a->slug) }}" class="card-row" style="text-decoration:none;display:grid">
-        <div>
-          <span class="cr-cat" style="{{ $a->category ? 'color:'.$a->category->color : '' }}">
-            {{ $a->category?->name ?? 'Article' }}
-          </span>
-          <h2 class="cr-title">{{ $a->title }}</h2>
-          @if($a->excerpt)
-            <div class="cr-excerpt">{{ $a->excerpt }}</div>
-          @endif
-          <div class="cr-meta">
-            <span>{{ $a->author?->name ?? 'ADT Sports' }}</span>
-            <span class="sep"></span>
-            <span>{{ $a->formatted_date }}</span>
-            <span class="sep"></span>
-            <span>{{ $a->read_time }} read</span>
-          </div>
-        </div>
-        <div class="cr-thumb" style="background:{{ $a->cover_bg }}">
-          @if($a->cover_image)
-            <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
-          @else
-            {{ $a->cover_emoji }}
-          @endif
-        </div>
-      </a>
+      {{-- Article feed. The first 5 render as large rows; the featured strip below
+           pulls out the next 3 as highlights. Anything left on this page renders as
+           rows too, so no article is ever dropped — the old "Must Read" grid only
+           appeared at count >= 11, which never happens at perPage = 10, silently
+           hiding items 9-10 of the page. --}}
+      @php
+        $feedItems  = $articles->take(5);
+        $stripItems = $articles->count() >= 8 ? $articles->slice(5, 3) : collect();
+        $restItems  = $articles->slice($feedItems->count() + $stripItems->count());
+      @endphp
+      @forelse($feedItems as $a)
+      @include('frontend.partials.article_row', ['a' => $a])
       @empty
+      {{-- Only a real empty state: an empty category filter, or a site with no
+           articles at all. When ≤4 articles exist they're all in the hero above,
+           so the feed is legitimately empty — don't claim "no articles found". --}}
+      @if($catSlug || ! $heroLead)
       <div style="text-align:center;padding:64px 20px;color:var(--ink3)">
         <div style="font-size:44px;margin-bottom:14px">📭</div>
         <p style="font-size:15px">No articles found{{ $catSlug ? ' in this category' : '' }}.</p>
@@ -124,12 +105,24 @@
           <a href="{{ route('home') }}" style="color:var(--brand);font-size:14px;margin-top:10px;display:inline-block">← Back to all articles</a>
         @endif
       </div>
+      @endif
       @endforelse
 
-      {{-- Feature strip (articles 5-7) --}}
-      @if($articles->count() > 5)
+      {{-- Page items the featured strip doesn't pull out — kept as rows so nothing
+           is lost (the strip only shows when it can fill a full row of 3). --}}
+      @foreach($restItems as $a)
+      @include('frontend.partials.article_row', ['a' => $a])
+      @endforeach
+
+      {{-- Insertion point for "Load more": freshly fetched articles are appended
+           here, so the featured strip below shifts down to stay last. --}}
+      <div data-load-more-anchor hidden></div>
+
+      {{-- Feature strip (next 3 stories) — only when it can show a full row of 3,
+           otherwise a lone card looks stray (those items render as rows above). --}}
+      @if($stripItems->isNotEmpty())
       <div class="feature-strip">
-        @foreach($articles->slice(5, 3) as $a)
+        @foreach($stripItems as $a)
         <a href="{{ route('article', $a->slug) }}" class="fs-item" style="text-decoration:none">
           <div class="fs-cat">{{ $a->breaking ? '🔴 Breaking' : ($a->category?->name ?? 'Article') }}</div>
           <h3 class="fs-title">{{ $a->title }}</h3>
@@ -139,41 +132,8 @@
       </div>
       @endif
 
-      {{-- Must Read grid (articles 8-10) --}}
-      @if($articles->count() > 8)
-      <div class="sec-hd">
-        <div class="sec-hd-left">
-          <div class="sec-hd-bar"></div>
-          <span class="sec-hd-label">Must Read</span>
-        </div>
-      </div>
-      <div class="cards-grid">
-        @foreach($articles->slice(8, 3) as $a)
-        <a href="{{ route('article', $a->slug) }}" class="card-box" style="text-decoration:none">
-          <div class="cb-thumb" style="background:{{ $a->cover_bg }}">
-            @if($a->cover_image)
-              <img src="{{ $a->cover_image }}" style="width:100%;height:100%;object-fit:cover" alt="{{ $a->title }}" loading="lazy" decoding="async">
-            @else
-              {{ $a->cover_emoji }}
-            @endif
-          </div>
-          <span class="cb-cat" style="{{ $a->category ? 'color:'.$a->category->color : '' }}">
-            {{ $a->category?->name ?? '' }}
-          </span>
-          <h3 class="cb-title">{{ $a->title }}</h3>
-          @if($a->excerpt)<div class="cb-excerpt">{{ $a->excerpt }}</div>@endif
-          <div class="cb-meta">{{ $a->formatted_date }} · {{ $a->read_time }} read</div>
-        </a>
-        @endforeach
-      </div>
-      @endif
-
-      {{-- Pagination --}}
-      @if($articles->hasPages())
-      <div class="pagination-wrap">
-        {{ $articles->links() }}
-      </div>
-      @endif
+      {{-- Load more --}}
+      @include('frontend.partials.load_more', ['paginator' => $articles])
 
     </main>
 
@@ -183,7 +143,7 @@
       {{-- Trending --}}
       <div class="widget">
         <div style="display:inline-flex;align-items:center;gap:6px;background:var(--brand-soft);color:var(--brand);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:20px;margin-bottom:14px">
-          🔥 Trending Now
+          <i class="fa-solid fa-arrow-trend-up"></i> Trending Now
         </div>
         @forelse($trending as $i => $a)
         <a href="{{ route('article', $a->slug) }}" class="card-num" style="text-decoration:none">
@@ -198,38 +158,11 @@
         @endforelse
       </div>
 
-      {{-- Newsletter --}}
-      <div class="widget widget-nl" id="newsletter">
-        <div class="sec-hd" style="border-bottom-color:rgba(255,255,255,.1);margin-bottom:14px">
-          <div class="sec-hd-left">
-            <div class="sec-hd-bar"></div>
-            <span class="sec-hd-label" style="color:#F0EBE5">Daily Digest</span>
-          </div>
-        </div>
-        <p class="nl-desc">Get the biggest Kabaddi headlines, match analysis, and exclusive stories delivered straight to your inbox.</p>
-        <input type="email" class="nl-input" placeholder="your@email.com" id="nlEmail">
-        <button class="nl-btn" onclick="subscribeNl()">Subscribe Now →</button>
-      </div>
-
-      {{-- Topics --}}
-      <div class="widget">
-        <div class="sec-hd" style="margin-bottom:14px">
-          <div class="sec-hd-left">
-            <div class="sec-hd-bar"></div>
-            <span class="sec-hd-label">Topics</span>
-          </div>
-        </div>
-        <div class="tag-cloud">
-          @foreach($categories as $cat)
-            <a href="{{ route('category', $cat->slug) }}" class="tag">{{ $cat->name }}</a>
-          @endforeach
-        </div>
-      </div>
 
       {{-- About --}}
       <div class="widget">
         <div class="about-mini-logo">
-          <div class="am-img"><img src="/public/uploads/logo.png" onerror="this.style.display='none'" alt="ADT"></div>
+          <div class="am-img"><img src="/uploads/logo.png" onerror="this.style.display='none'" alt="ADT"></div>
           <div class="am-name"><span>ADT</span> Sports</div>
         </div>
         <p class="about-mini-desc">India's #1 Kabaddi media platform — covering every raid, every story, every league.</p>
@@ -250,13 +183,3 @@
 </div>
 @endsection
 
-@push('scripts')
-<script>
-function subscribeNl() {
-  const e = document.getElementById('nlEmail').value;
-  if (!e || !e.includes('@')) { alert('Please enter a valid email address.'); return; }
-  alert('✅ Thanks for subscribing! You\'ll receive the Daily Digest soon.');
-  document.getElementById('nlEmail').value = '';
-}
-</script>
-@endpush

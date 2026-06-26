@@ -4,19 +4,19 @@
 
 <div class="page-hd">
   <div><h1>Media Library</h1><div class="page-hd-sub">{{ $media->total() }} files</div></div>
-  <label for="uploadInput" class="btn btn-primary" style="cursor:pointer">📤 Upload Images</label>
+  <label for="uploadInput" class="btn btn-primary" style="cursor:pointer"><i class="fa-solid fa-upload"></i> Upload Images</label>
   <input type="file" id="uploadInput" multiple accept="image/*" style="display:none" onchange="uploadFiles(this.files)">
 </div>
 
 <div class="drop-zone" id="dropZone">
-  <div class="drop-icon">🖼️</div>
+  <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
   <p style="color:var(--ink2);font-size:14px;margin-bottom:4px">Drag & drop images here, or click Upload above</p>
   <p style="color:var(--ink3);font-size:12px">PNG, JPG, GIF, WebP — max 10MB each</p>
 </div>
 
 <div id="uploadProgress" style="display:none;margin-bottom:16px">
   <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--ink2)">
-    ⏳ Uploading files… please wait.
+    <i class="fa-solid fa-spinner fa-spin"></i> Uploading files… please wait.
   </div>
 </div>
 
@@ -25,25 +25,28 @@
   <div class="media-item" id="media-{{ $m->id }}">
     <div class="media-thumb">
       <img src="{{ $m->url }}" alt="{{ $m->original_name }}" loading="lazy"
-           onerror="this.style.display='none';this.parentNode.innerHTML='🖼️'">
+           onerror="this.style.display='none';this.parentNode.innerHTML='&lt;i class=&quot;fa-solid fa-image&quot;&gt;&lt;/i&gt;'">
     </div>
     <div class="media-info">
       <div class="media-name" title="{{ $m->original_name }}">{{ $m->original_name }}</div>
       <div class="media-size">{{ $m->formatted_size }}</div>
+      <input type="text" class="media-alt" value="{{ $m->alt }}" placeholder="Alt text — for SEO &amp; screen readers"
+             data-url="{{ route('admin.media.update', $m) }}" onchange="saveAlt(this)"
+             style="width:100%;margin-top:6px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:11px;color:var(--ink);outline:none">
       <div style="display:flex;gap:4px;margin-top:7px">
         <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;flex:1"
-          onclick="copyUrl('{{ $m->url }}')">📋 Copy URL</button>
+          onclick="copyUrl('{{ $m->url }}')"><i class="fa-solid fa-link"></i> Copy URL</button>
         <form action="{{ route('admin.media.destroy',$m) }}" method="POST" style="display:inline"
               onsubmit="return confirm('Delete this image?')">
           @csrf @method('DELETE')
-          <button type="submit" class="btn btn-danger btn-sm" style="font-size:10px;padding:3px 8px">🗑️</button>
+          <button type="submit" class="btn btn-danger btn-sm" style="font-size:10px;padding:3px 8px"><i class="fa-solid fa-trash-can"></i></button>
         </form>
       </div>
     </div>
   </div>
   @empty
   <div class="empty-state" style="grid-column:1/-1">
-    <div style="font-size:44px;margin-bottom:12px">🖼️</div>
+    <div style="font-size:44px;margin-bottom:12px"><i class="fa-solid fa-image"></i></div>
     <p>No images uploaded yet. Upload your first image above.</p>
   </div>
   @endforelse
@@ -92,11 +95,26 @@ function prependMedia(d) {
     <div class="media-info">
       <div class="media-name">${d.name}</div>
       <div class="media-size">Just uploaded</div>
+      <input type="text" class="media-alt" value="${(d.alt||'').replace(/"/g,'&quot;')}" placeholder="Alt text — for SEO & screen readers"
+             data-url="${MEDIA_BASE}/${d.id}" onchange="saveAlt(this)"
+             style="width:100%;margin-top:6px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:5px 8px;font-size:11px;color:var(--ink);outline:none">
       <div style="margin-top:7px">
-        <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;width:100%" onclick="copyUrl('${d.url}')">📋 Copy URL</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px;width:100%" onclick="copyUrl('${d.url}')"><i class="fa-solid fa-link"></i> Copy URL</button>
       </div>
     </div>`;
   grid.prepend(div);
+}
+
+const MEDIA_TOKEN = '{{ csrf_token() }}';
+const MEDIA_BASE = '{{ url('/admin/media') }}';
+function saveAlt(el) {
+  fetch(el.dataset.url, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':MEDIA_TOKEN},
+    body:JSON.stringify({alt: el.value})
+  })
+  .then(r => { el.style.borderColor = r.ok ? '#16a34a' : '#e0245e'; setTimeout(()=>{el.style.borderColor='';}, 900); })
+  .catch(() => { el.style.borderColor = '#e0245e'; });
 }
 
 function copyUrl(url) {

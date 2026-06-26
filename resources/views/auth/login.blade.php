@@ -21,6 +21,9 @@ h2{font-size:22px;font-weight:700;text-align:center;margin-bottom:6px}
 .err{background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.25);color:#FCA5A5;font-size:12px;padding:10px 14px;border-radius:6px;margin-bottom:14px}
 .btn-login{width:100%;background:#D4420A;color:#fff;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:background .15s;margin-top:4px;font-family:'Inter',sans-serif}
 .btn-login:hover{background:#B83808}
+.ok{background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.3);color:#86EFAC;font-size:12px;padding:10px 14px;border-radius:6px;margin-bottom:14px}
+.forgot{display:block;text-align:right;margin-top:12px;font-size:12px;color:#78716C;text-decoration:none}
+.forgot:hover{color:#D4420A}
 .hint{margin-top:20px;background:#1C1917;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:12px 16px;font-size:12px;color:#6B6560;text-align:center;line-height:1.6}
 .hint strong{color:#A8A09A}
 </style>
@@ -34,6 +37,9 @@ h2{font-size:22px;font-weight:700;text-align:center;margin-bottom:6px}
   <h2>Welcome back</h2>
   <p class="sub">Sign in to manage your Kabaddi media platform</p>
 
+  @if(session('status'))
+    <div class="ok">{{ session('status') }}</div>
+  @endif
   @if($errors->any())
     <div class="err">{{ $errors->first() }}</div>
   @endif
@@ -52,6 +58,7 @@ h2{font-size:22px;font-weight:700;text-align:center;margin-bottom:6px}
       <input type="password" name="password" required placeholder="••••••••••">
     </div>
     <button type="submit" class="btn-login">Sign In →</button>
+    <a href="{{ route('password.request') }}" class="forgot">Forgot password?</a>
   </form>
 </div>
 </body>

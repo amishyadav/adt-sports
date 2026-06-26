@@ -12,11 +12,19 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         /* ── Admin User ─────────────────────────────────── */
+        $adminPassword = env('ADMIN_PASSWORD');
+        if (blank($adminPassword)) {
+            throw new \RuntimeException(
+                'ADMIN_PASSWORD must be set in the environment before seeding. '
+                . 'Refusing to seed an admin account with a default password.'
+            );
+        }
+
         $admin = User::firstOrCreate(
             ['email' => env('ADMIN_EMAIL', 'admin@adtsports.com')],
             [
                 'name'     => 'Aditya Trivedi',
-                'password' => Hash::make(env('ADMIN_PASSWORD', 'ADT@admin2025')),
+                'password' => Hash::make($adminPassword),
                 'role'     => 'admin',
             ]
         );
@@ -123,12 +131,16 @@ class DatabaseSeeder extends Seeder
         foreach ($articles as $data) {
             $slug = Article::generateSlug($data['title']);
             $rt   = Article::calculateReadTime($data['body']);
-            Article::firstOrCreate(['slug' => $slug], array_merge($data, [
+            $tags = $data['tags'] ?? [];
+            unset($data['tags']);
+
+            $article = Article::firstOrCreate(['slug' => $slug], array_merge($data, [
                 'author_id' => $admin->id,
                 'slug'      => $slug,
                 'read_time' => $rt,
-                'tags'      => $data['tags'],
             ]));
+
+            $article->syncTagsFromInput($tags);
         }
 
         // Refresh category counts
@@ -140,6 +152,8 @@ class DatabaseSeeder extends Seeder
             ['key'=>'site_tagline',     'value'=>"India's #1 Kabaddi Media Platform",          'group'=>'general'],
             ['key'=>'site_email',       'value'=>'aditya03091995@gmail.com',                    'group'=>'general'],
             ['key'=>'site_phone',       'value'=>'+91 9979269732',                              'group'=>'general'],
+            ['key'=>'site_whatsapp',    'value'=>'919979269732',                                'group'=>'general'],
+            ['key'=>'site_address',     'value'=>'Jaipur, Rajasthan, India',                    'group'=>'general'],
             ['key'=>'site_description', 'value'=>"India's #1 Kabaddi media platform.",          'group'=>'general'],
             ['key'=>'breaking_ticker',  'value'=>'PKL Season 11 Final: Jaipur Pink Panthers 42–37 Patna Pirates | Pardeep Narwal crosses 1,500 career raid points | Kabaddi World Cup 2025 — India squad announced', 'group'=>'general'],
             ['key'=>'footer_tagline',   'value'=>'ADT Sports is not covering Kabaddi. It is building its future.', 'group'=>'appearance'],
@@ -154,6 +168,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->command->info('✅ ADT Sports seeded!');
-        $this->command->info('   Login: admin@adtsports.com / ADT@admin2025');
+        $this->command->info('   Admin login: ' . env('ADMIN_EMAIL', 'admin@adtsports.com'));
+        $this->command->info('   Password: (as set in ADMIN_PASSWORD)');
     }
 }

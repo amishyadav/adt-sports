@@ -32,6 +32,12 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    /** Queue the reset email so it sends out-of-band (uses the branded message). */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\QueuedResetPassword($token));
+    }
+
     public function getInitialsAttribute(): string
     {
         $parts = explode(' ', trim($this->name));
