@@ -12,7 +12,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         /* ── Admin User ─────────────────────────────────── */
-        $adminPassword = env('ADMIN_PASSWORD');
+        $adminPassword = 'ADMIN@123adt';
         if (blank($adminPassword)) {
             throw new \RuntimeException(
                 'ADMIN_PASSWORD must be set in the environment before seeding. '
@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         $admin = User::firstOrCreate(
             ['email' => env('ADMIN_EMAIL', 'admin@adtsports.com')],
             [
-                'name'     => 'Aditya Trivedi',
+                'name'     => 'Aditya Pandit',
                 'password' => Hash::make($adminPassword),
                 'role'     => 'admin',
             ]

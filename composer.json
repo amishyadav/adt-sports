@@ -3,8 +3,8 @@
     "type": "project",
     "description": "ADT Sports - India's #1 Kabaddi Media Platform",
     "require": {
-        "php": "^8.2",
-        "laravel/framework": "^11.0",
+        "php": "^8.3",
+        "laravel/framework": "^v12.31.0",
         "laravel/tinker": "^2.9",
         "mews/purifier": "^3.4",
         "sentry/sentry-laravel": "^4.26",
