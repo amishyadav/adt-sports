@@ -53,7 +53,7 @@ class MediaController extends Controller
             'alt'           => $request->input('alt'),
             'mimetype'      => $file->getMimeType(),
             'size'          => @filesize($destination) ?: $file->getSize(),
-            'url'           => '/' . self::DIR . '/' . $filename,
+            'url'           => '/public' . '/' . self::DIR . '/' . $filename,
             'disk'          => self::DISK,
             'uploaded_by'   => Auth::id(),
         ]);

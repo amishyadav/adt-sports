@@ -10,6 +10,9 @@ use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ActivityController;
+use App\Http\Controllers\Admin\TeamController;
+use App\Http\Controllers\Admin\TeamMatchController;
+use App\Http\Controllers\Admin\MatchScreenController;
 use App\Http\Controllers\Frontend\FrontendController;
 use App\Http\Controllers\Frontend\SeoController;
 use App\Http\Controllers\Frontend\SubscriberController as PublicSubscriberController;
@@ -72,6 +75,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // Categories — list is staff-visible; writes are admin-only (see group below).
     Route::get('/categories',                [CategoryController::class, 'index'])->name('categories.index');
 
+    // Teams & matches — lists are staff-visible; writes are admin-only (see group below).
+    Route::get('/teams',                     [TeamController::class, 'index'])->name('teams.index');
+    Route::get('/matches',                   [TeamMatchController::class, 'index'])->name('matches.index');
+
+    // Match-day screens (Action column on the matches list). Read-only, so staff
+    // can run a scoreboard without full admin rights; the controls below are not.
+    Route::get('/matches/{match}/scoreboard', [MatchScreenController::class, 'scoreboard'])->name('matches.scoreboard');
+    Route::get('/matches/{match}/timer',      [MatchScreenController::class, 'timer'])->name('matches.timer');
+    Route::get('/matches/{match}/screen',     [MatchScreenController::class, 'mainScreen'])->name('matches.screen');
+    Route::get('/matches/{match}/live',       [MatchScreenController::class, 'liveScore'])->name('matches.live');
+    Route::get('/matches/{match}/state',      [MatchScreenController::class, 'state'])->name('matches.state');
+
     // Media
     Route::get('/media',                     [MediaController::class, 'index'])->name('media.index');
     Route::post('/media/upload',             [MediaController::class, 'upload'])->name('media.upload');
@@ -89,6 +104,30 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         Route::post('/categories',               [CategoryController::class, 'store'])->name('categories.store');
         Route::put('/categories/{category}',     [CategoryController::class, 'update'])->name('categories.update');
         Route::delete('/categories/{category}',  [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+        // Teams
+        Route::post('/teams',                    [TeamController::class, 'store'])->name('teams.store');
+        Route::put('/teams/{team}',              [TeamController::class, 'update'])->name('teams.update');
+        Route::put('/teams/{team}/toggle',       [TeamController::class, 'toggleStatus'])->name('teams.toggle');
+        Route::delete('/teams/{team}',           [TeamController::class, 'destroy'])->name('teams.destroy');
+
+        // Team matches
+        Route::post('/matches',                  [TeamMatchController::class, 'store'])->name('matches.store');
+        Route::put('/matches/{match}',           [TeamMatchController::class, 'update'])->name('matches.update');
+        Route::delete('/matches/{match}',        [TeamMatchController::class, 'destroy'])->name('matches.destroy');
+
+        // Scoreboard / timer console controls
+        Route::put('/matches/{match}/score',     [MatchScreenController::class, 'updateScore'])->name('matches.score');
+        Route::put('/matches/{match}/adjust',    [MatchScreenController::class, 'adjustScore'])->name('matches.adjust');
+        Route::put('/matches/{match}/event',     [MatchScreenController::class, 'recordEvent'])->name('matches.event');
+        Route::put('/matches/{match}/players',   [MatchScreenController::class, 'updatePlayers'])->name('matches.players');
+        Route::put('/matches/{match}/game-part', [MatchScreenController::class, 'updateGamePart'])->name('matches.gamepart');
+        Route::put('/matches/{match}/swap',      [MatchScreenController::class, 'swapCourts'])->name('matches.swap');
+        Route::put('/matches/{match}/timer',     [MatchScreenController::class, 'updateTimer'])->name('matches.timer.update');
+        Route::put('/matches/{match}/raid',      [MatchScreenController::class, 'updateRaid'])->name('matches.raid');
+        Route::put('/matches/{match}/status',    [MatchScreenController::class, 'updateStatus'])->name('matches.status');
+        Route::put('/matches/{match}/undo',      [MatchScreenController::class, 'undo'])->name('matches.undo');
+        Route::put('/matches/{match}/reset',     [MatchScreenController::class, 'resetMatch'])->name('matches.reset');
 
         // Global settings
         Route::put('/settings',                  [SettingsController::class, 'update'])->name('settings.update');

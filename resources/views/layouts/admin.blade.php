@@ -247,6 +247,12 @@ nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
         <a href="{{ route('admin.categories.index') }}" class="nav-item {{ request()->routeIs('admin.categories.*') ? 'active':'' }}">
           <span class="nav-icon"><i class="fa-solid fa-tag"></i></span> Categories
         </a>
+        <a href="{{ route('admin.teams.index') }}" class="nav-item {{ request()->routeIs('admin.teams.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-shield-halved"></i></span> Teams
+        </a>
+        <a href="{{ route('admin.matches.index') }}" class="nav-item {{ request()->routeIs('admin.matches.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> Matches
+        </a>
         <a href="{{ route('admin.media.index') }}" class="nav-item {{ request()->routeIs('admin.media.*') ? 'active':'' }}">
           <span class="nav-icon"><i class="fa-solid fa-images"></i></span> Media Library
         </a>

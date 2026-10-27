@@ -59,7 +59,11 @@ class SecurityHeaders
             // Inline styles + Google Fonts + Font Awesome stylesheet.
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
             "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
-            "connect-src 'self'",
+            // connect-src governs WebSockets as well as fetch/XHR. Reverb listens
+            // on its own port, so its endpoint is a different origin and bare
+            // 'self' silently blocks it — the live screens then sit frozen on a
+            // throttled fallback poll. Only the configured host:port is allowed.
+            'connect-src ' . implode(' ', array_merge(["'self'"], $this->websocketOrigins())),
         ];
 
         if ($request->secure()) {
@@ -67,5 +71,31 @@ class SecurityHeaders
         }
 
         return implode('; ', $directives);
+    }
+
+    /**
+     * The exact WebSocket origin the live match screens connect to, or nothing
+     * at all when broadcasting is switched off.
+     *
+     * Deliberately narrow: one host and one port, taken from the broadcast
+     * config rather than hard-coded or wildcarded, so this grants no more reach
+     * than the app already has. Both schemes are listed because browsers match
+     * ws:// and wss:// separately and the deployment decides which is in use.
+     */
+    private function websocketOrigins(): array
+    {
+        if (config('broadcasting.default') !== 'reverb') {
+            return [];
+        }
+
+        $options = config('broadcasting.connections.reverb.options', []);
+        $host = $options['host'] ?? null;
+        $port = $options['port'] ?? null;
+
+        if (! $host || ! $port) {
+            return [];
+        }
+
+        return ["ws://{$host}:{$port}", "wss://{$host}:{$port}"];
     }
 }
