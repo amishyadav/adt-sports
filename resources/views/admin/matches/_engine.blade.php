@@ -44,10 +44,15 @@ window.MatchLive = (function () {
 
   var pollTimer = null;
   var inflight = null;       // AbortController for the running reconcile
-  var pollFast = 5000;       // socket down
+  /* Socket down: poll tight enough that a raid change is not visibly late.
+     Safe to keep this short because reconcile() allows only one request in
+     flight — on a slow server it self-throttles to whatever the server can
+     answer instead of stacking up. */
+  var pollFast = 1500;
   var pollSlow = 30000;      // socket up: just re-baseline the clock offset
   var ticker = null;         // Web Worker driving the repaints
   var lastFrameAt = 0;       // when authoritative state last arrived
+  var downSince = null;      // when the socket was first seen disconnected
 
   function serverNow() { return Date.now() + offset; }
 
@@ -220,6 +225,20 @@ window.MatchLive = (function () {
     if (chip) {
       chip.textContent = connected ? 'Live' : (httpOk ? 'Polling' : 'Offline');
       chip.className = 'ml-conn ' + (connected ? 'ok' : (httpOk ? 'warn' : 'bad'));
+    }
+
+    /* "Polling" on its own does not tell an operator what to do about it, and a
+       stopped WebSocket server is the usual reason screens lag behind the
+       console. After a few seconds down, say so and name the fix. */
+    if (connected) {
+      downSince = null;
+    } else if (!downSince) {
+      downSince = Date.now();
+    }
+
+    var hint = document.getElementById('mlHint');
+    if (hint) {
+      hint.hidden = !(downSince && (Date.now() - downSince) > 8000);
     }
   }
 
@@ -463,6 +482,14 @@ window.MatchLive = (function () {
   .ml-conn.ok{background:rgba(22,163,74,.16);color:#86EFAC;border-color:rgba(22,163,74,.3)}
   .ml-conn.warn{background:rgba(217,119,6,.16);color:#FCD34D;border-color:rgba(217,119,6,.3)}
   .ml-conn.bad{background:rgba(220,38,38,.16);color:#FCA5A5;border-color:rgba(220,38,38,.3)}
+
+  /* Shown on the consoles only, once the socket has been down a few seconds. */
+  .ml-hint{display:flex;align-items:center;gap:9px;background:rgba(217,119,6,.12);
+           border:1px solid rgba(217,119,6,.35);border-radius:8px;padding:10px 14px;
+           font-size:12.5px;color:#FCD34D;margin-bottom:16px;line-height:1.5}
+  .ml-hint[hidden]{display:none}
+  .ml-hint code{background:rgba(0,0,0,.4);border-radius:4px;padding:2px 7px;
+                font-size:12px;color:#FDE68A;white-space:nowrap}
 </style>
 @once
 <div class="ml-toast" id="mlToast" role="status" aria-live="polite"></div>

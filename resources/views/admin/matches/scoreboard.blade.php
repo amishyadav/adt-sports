@@ -5,10 +5,17 @@
 @php
   $sides = [1 => $match->sideData(1), 2 => $match->sideData(2)];
   $full = \App\Models\TeamMatch::FULL_SQUAD;
+
+  // Court order for the headline. The panels below stay in team order and are
+  // re-ordered visually with CSS, so their forms never change which team they
+  // post to — only where they sit on screen.
+  [$courtLeft, $courtRight] = $match->sides();
 @endphp
 
 <div class="sb-title">
-  Match: {{ $sides[1]['name'] }} <span class="sb-vs">vs</span> {{ $sides[2]['name'] }}
+  Match: <span id="sbTitleL">{{ $courtLeft['name'] }}</span>
+  <span class="sb-vs">vs</span>
+  <span id="sbTitleR">{{ $courtRight['name'] }}</span>
 </div>
 
 <div class="sb-sublinks">
@@ -25,8 +32,17 @@
   <span class="ml-conn warn" id="mlConn" title="Live = pushed over WebSockets; Polling = WebSocket server unreachable, falling back to HTTP">Connecting</span>
 </div>
 
+<div class="ml-hint" id="mlHint" hidden>
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <span>
+    Live push is down — the screens are on the slower HTTP fallback, so the main
+    screen and live overlay will trail this console by a second or so.
+    Start the WebSocket server with <code>php artisan reverb:start</code> and leave it running.
+  </span>
+</div>
+
 {{-- ── Team score cards ─────────────────────────────────── --}}
-<div class="sb-grid">
+<div class="sb-grid {{ $match->courts_swapped ? 'swapped' : '' }}" data-court-grid>
   @foreach($sides as $side => $data)
     <div class="sb-card sb-t{{ $side }}">
       <div class="sb-team">{{ $data['name'] }}</div>
@@ -55,11 +71,18 @@
             @csrf @method('PUT')
             <input type="hidden" name="team" value="{{ $side }}">
             <input type="hidden" name="type" value="{{ $type }}">
-            <button type="submit" class="sb-chip sb-chip-{{ $type }}"
-              title="{{ $type === 'all_out'
-                ? $data['name'] . ' all out — +' . $preset['points'] . ' to the other side, both squads back to ' . $full
-                : $preset['label'] . ' — +' . $preset['points'] . ' to ' . $data['name'] }}">
-              {{ $preset['label'] }} <span class="sb-chip-pts">+{{ $preset['points'] }}</span>
+            @php
+              $title = match (true) {
+                  $preset['points'] === 0 => $preset['label'] . ' for ' . $data['name']
+                      . ' — no points; logs it to the feed and plays the on-air graphic',
+                  $type === 'all_out' => $data['name'] . ' all out — +' . $preset['points']
+                      . ' to the other side, both squads back to ' . $full,
+                  default => $preset['label'] . ' — +' . $preset['points'] . ' to ' . $data['name'],
+              };
+            @endphp
+            <button type="submit" class="sb-chip sb-chip-{{ $type }}" title="{{ $title }}">
+              {{ $preset['label'] }}
+              <span class="sb-chip-pts">{{ $preset['points'] === 0 ? 'marker' : '+' . $preset['points'] }}</span>
             </button>
           </form>
         @endforeach
@@ -91,7 +114,7 @@
 {{-- ── Players left ─────────────────────────────────────── --}}
 <div class="sb-panel">
   <h3 class="sb-panel-hd">Players Left</h3>
-  <div class="sb-grid sb-grid-tight">
+  <div class="sb-grid sb-grid-tight {{ $match->courts_swapped ? 'swapped' : '' }}" data-court-grid>
     @foreach($sides as $side => $data)
       <div class="sb-subcard sb-t{{ $side }}">
         <div class="sb-team sb-team-sm">{{ $data['name'] }}</div>
@@ -195,6 +218,11 @@
 
   .sb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px;margin-bottom:18px}
   .sb-grid-tight{margin-bottom:0;gap:14px}
+
+  /* Change of ends. Only the painted order moves — each panel keeps its own
+     team and so keeps posting to the right side. */
+  .sb-grid.swapped > .sb-t1{order:2}
+  .sb-grid.swapped > .sb-t2{order:1}
 
   .sb-card{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:18px;text-align:center}
   .sb-card.sb-t1{border-color:var(--t1)}
@@ -342,7 +370,8 @@
             return;
         }
 
-        if (delta === null || isNaN(delta)) { return; }
+        // A zero-point marker (Do or Die) must not nudge the score at all.
+        if (delta === null || isNaN(delta) || delta === 0) { return; }
         setScore(side, Math.max(0, shown[side] + delta));
     },
 
@@ -373,6 +402,13 @@
       });
 
       document.getElementById('sbCourts').textContent = s.courts_swapped ? 'swapped' : 'normal';
+
+      // Change of ends, applied without a reload.
+      document.querySelectorAll('[data-court-grid]').forEach(function (grid) {
+        grid.classList.toggle('swapped', !!s.courts_swapped);
+      });
+      document.getElementById('sbTitleL').textContent = s.left.name;
+      document.getElementById('sbTitleR').textContent = s.right.name;
 
       // The poll carries the feed (?feed=1); an action response carries it too.
       paintFeed(s.feed !== undefined ? s.feed : (extra && extra.feed),

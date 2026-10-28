@@ -167,6 +167,14 @@ window.RaidAudio = (function () {
         },
         status: status,
         currentSource: function () { return sources[index] || null; },
+
+        /**
+         * Play the bed from the top — what a "Raid In" click wants. Calling it
+         * while already playing rewinds, so starting the other side's raid
+         * mid-raid restarts the countdown rather than letting it run on.
+         */
+        play: function () { start(raidSeconds); },
+
         start: start,
         stop: stop,
         arm: arm,

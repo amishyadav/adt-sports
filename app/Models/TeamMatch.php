@@ -207,12 +207,48 @@ class TeamMatch extends Model
         ];
     }
 
+    /**
+     * The most recent scoring event, for the on-air animation sting.
+     *
+     * Only the raid presets qualify — a players-left tweak or a court swap must
+     * not throw a banner on the stream. The id is what the screens dedupe on:
+     * they fire once when it increases and ignore it on first load, so opening
+     * an overlay mid-match never replays an old event.
+     */
+    public function animationCue(): ?array
+    {
+        $event = $this->events()
+            ->whereIn('type', array_keys(MatchEvent::PRESETS))
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $event) {
+            return null;
+        }
+
+        // An all out is recorded against the side that was wiped out, but the
+        // points — and so the name worth showing — belong to the other side.
+        $credited = $event->type === 'all_out'
+            ? ($event->team === 1 ? 2 : 1)
+            : $event->team;
+
+        return [
+            'id'        => $event->id,
+            'type'      => $event->type,
+            'label'     => $event->label,
+            'points'    => $event->points,
+            'team'      => $credited,
+            'team_name' => $credited ? $this->sideData($credited)['name'] : null,
+        ];
+    }
+
     /** Everything the live screens poll for, in one shape. */
     public function toScreenPayload(): array
     {
         [$left, $right] = $this->sides();
 
         return [
+            'cue'            => $this->animationCue(),
             // Server wall-clock, so each screen can work out its own offset and
             // derive both countdowns from timestamps instead of counting down
             // locally. Independent local counters are what made the match clock

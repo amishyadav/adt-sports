@@ -39,13 +39,16 @@
   html,body{width:100%;height:100%;background:transparent;overflow:hidden}
   body{font-family:'Inter',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Fixed design canvas, pinned top-left and scaled to the source width. */
-  .stage{position:fixed;left:0;top:0;width:1920px;height:1080px;
-         transform-origin:top left}            /* ← bottom left, if moving down */
+  /* Fixed design canvas, pinned bottom-left and scaled to the source width. */
+  .stage{position:fixed;left:0;bottom:0;width:1920px;height:1080px;
+         transform-origin:bottom left}
 
-  .rail{position:absolute;left:80px;top:46px;width:1760px;          /* ← bottom:46px */
-        animation:drop .65s cubic-bezier(.2,.9,.25,1) both}
-  @keyframes drop{from{transform:translateY(-140%);opacity:0}to{transform:translateY(0);opacity:1}}
+  /* Score bar along the bottom of frame. Its total height — 92 (tier 1) + 7
+     (gap) + 54 (tier 2) = 153 — is what RAIL_H below is derived from, so the
+     sting can be parked directly on top of it. */
+  .rail{position:absolute;left:80px;bottom:46px;width:1760px;
+        animation:rise .65s cubic-bezier(.2,.9,.25,1) both}
+  @keyframes rise{from{transform:translateY(140%);opacity:0}to{transform:translateY(0);opacity:1}}
 
   /* ── Tier 1: crests, names, scores ───────────────────────── */
   .tier1{display:flex;align-items:stretch;height:92px;background:var(--rail);
@@ -109,18 +112,18 @@
                font-variant-numeric:tabular-nums;white-space:nowrap}
   .mclock.stopped span{color:#8593A5}
 
-  /* Quiet notice if the poll starts failing — the graphic stays on air. */
-  .offline{position:absolute;right:0;top:-30px;font-size:14px;font-weight:800;letter-spacing:2px;
+  /* Diagnostics sit BELOW the bar now — the space above it belongs to the
+     sting. All three are near-invisible or hidden while everything is healthy. */
+  .offline{position:absolute;right:0;bottom:-30px;font-size:14px;font-weight:800;letter-spacing:2px;
            text-transform:uppercase;color:#FDBA74;opacity:0;transition:opacity .3s}
   .offline.on{opacity:1}
   /* Transport readout — invisible on a stream while healthy, legible when not. */
-  .age{position:absolute;left:0;top:-28px;font-size:12px;font-weight:700;letter-spacing:2px;
+  .age{position:absolute;left:0;bottom:-28px;font-size:12px;font-weight:700;letter-spacing:2px;
        color:rgba(255,255,255,.14);white-space:nowrap}
   .age.late{color:#FCA5A5}
 
-  /* Autoplay prompt. Sits above the bar so it is outside the broadcast frame,
-     and it only exists while the browser is refusing to start audio. */
-  .sound-gate{position:absolute;left:50%;top:-34px;transform:translateX(-50%);
+  /* Autoplay prompt — only exists while the browser is refusing to start audio. */
+  .sound-gate{position:absolute;left:50%;bottom:-34px;transform:translateX(-50%);
               display:inline-flex;align-items:center;gap:8px;cursor:pointer;
               background:var(--green);color:#fff;border:none;border-radius:16px;
               padding:6px 16px;font-family:inherit;font-size:12px;font-weight:800;
@@ -128,6 +131,94 @@
               box-shadow:0 6px 18px rgba(0,0,0,.45)}
   .sound-gate[hidden]{display:none}
   .sound-gate.bad{background:#B91C1C;cursor:default}
+
+  /* ── Event sting ───────────────────────────────────────────────────────
+     A broadcast-style card that punches in, holds, then lifts off. One
+     3-second animation drives the whole life cycle, so nothing has to be
+     timed in JS beyond removing the node afterwards. */
+  /* Parked directly above the score bar: 46 (bar offset) + 153 (bar height)
+     + 26 (breathing room). Grows upward, so a taller card never pushes into
+     the bar. */
+  .cue{position:absolute;left:50%;bottom:225px;transform:translateX(-50%);
+       pointer-events:none;z-index:50}
+
+  .cue-card{position:relative;display:flex;flex-direction:column;align-items:center;
+            gap:10px;padding:30px 72px;border-radius:18px;overflow:hidden;
+            background:linear-gradient(135deg,rgba(10,13,18,.93),rgba(4,6,9,.96));
+            border:3px solid var(--brand);
+            box-shadow:0 26px 80px rgba(0,0,0,.72),0 0 60px rgba(232,89,12,.3);
+            animation:cue-life 3s cubic-bezier(.16,.84,.3,1) both}
+
+  .cue-label{position:relative;font-size:76px;font-weight:900;line-height:1;
+             letter-spacing:4px;text-transform:uppercase;white-space:nowrap;
+             color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.6)}
+  /* Team name only — points are deliberately not shown on air. The scoreline
+     in the bar below is the single place a viewer reads the score from. */
+  .cue-sub{position:relative;font-size:26px;font-weight:800;letter-spacing:3px;
+           text-transform:uppercase;color:rgba(255,255,255,.82);white-space:nowrap}
+
+  /* Shockwave ring behind the card. */
+  .cue-ring{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;
+            border-radius:50%;border:6px solid var(--brand);opacity:0;
+            animation:cue-ring 1.1s ease-out both}
+
+  /* Diagonal speed streaks, swept across once. */
+  .cue-streaks{position:absolute;inset:0;opacity:.16;
+               background:repeating-linear-gradient(115deg,#fff 0 3px,transparent 3px 26px);
+               animation:cue-streaks 1.5s ease-out both}
+
+  @keyframes cue-life{
+    0%  {opacity:0;transform:scale(.52) translateY(26px)}
+    11% {opacity:1;transform:scale(1.07) translateY(0)}
+    17% {transform:scale(1)}
+    80% {opacity:1;transform:scale(1)}
+    100%{opacity:0;transform:scale(1.14) translateY(-18px)}
+  }
+  @keyframes cue-ring{
+    0%  {transform:scale(.35);opacity:.9}
+    65% {opacity:0}
+    100%{transform:scale(2.6);opacity:0}
+  }
+  @keyframes cue-streaks{
+    0%  {transform:translateX(-60%)}
+    100%{transform:translateX(60%)}
+  }
+  @keyframes cue-shake{
+    0%,100%{margin-left:0} 15%{margin-left:-9px} 30%{margin-left:8px}
+    45%{margin-left:-6px} 60%{margin-left:4px} 75%{margin-left:-2px}
+  }
+  @keyframes cue-throb{
+    0%,100%{opacity:1} 50%{opacity:.55}
+  }
+
+  /* ── Per-event treatments ── */
+
+  /* Safe raid: the quiet one. Gold, no shake. */
+  .cue-safe_raid .cue-card{border-color:#F5A524;box-shadow:0 26px 80px rgba(0,0,0,.72),0 0 60px rgba(245,165,36,.32)}
+  .cue-safe_raid .cue-label{color:#FFD98A}
+  .cue-safe_raid .cue-ring{border-color:#F5A524}
+
+  /* Super raid: the big one — green, shakes, keeps the streaks. */
+  .cue-super_raid .cue-card{border-color:#22C55E;animation:cue-life 3s cubic-bezier(.16,.84,.3,1) both,
+                            cue-shake .55s ease-out both;
+                            box-shadow:0 26px 80px rgba(0,0,0,.72),0 0 70px rgba(34,197,94,.4)}
+  .cue-super_raid .cue-label{color:#86EFAC;font-size:84px}
+  .cue-super_raid .cue-ring{border-color:#22C55E}
+
+  /* Do or die: tense. Red, throbbing label, no ring. */
+  .cue-do_or_die .cue-card{border-color:#DC2626;box-shadow:0 26px 80px rgba(0,0,0,.72),0 0 64px rgba(220,38,38,.42)}
+  .cue-do_or_die .cue-label{color:#FCA5A5;animation:cue-throb .5s steps(2,end) 4}
+  .cue-do_or_die .cue-ring{display:none}
+
+  /* All out: the most dramatic — wide, brand orange, shake plus streaks. */
+  .cue-all_out .cue-card{border-color:#FF7A29;padding:34px 110px;
+                         animation:cue-life 3s cubic-bezier(.16,.84,.3,1) both,
+                                   cue-shake .7s ease-out both;
+                         box-shadow:0 26px 90px rgba(0,0,0,.76),0 0 80px rgba(255,122,41,.45)}
+  .cue-all_out .cue-label{color:#FFB37A;font-size:92px;letter-spacing:8px}
+  .cue-all_out .cue-ring{border-color:#FF7A29}
+
+  @media (max-width:760px){ .cue{display:none} }
 </style>
 </head>
 <body>
@@ -153,6 +244,10 @@
 @endphp
 
 <div class="stage" id="stage">
+
+  {{-- Event sting. Injected on a scoring click, removes itself after 3s. --}}
+  <div class="cue" id="cue" aria-live="polite"></div>
+
   <div class="rail">
     <div class="offline" id="offline">Reconnecting</div>
     <div class="age" id="mlAge"></div>
@@ -210,12 +305,16 @@
 (function () {
   var FULL = {{ $full }};
 
-  /* ── Raid countdown audio ───────────────────────────────────────────────
-     The countdown bed starts when the 30-second raid clock starts and stops
-     the moment the raid ends. Add ?mute=1 to the URL to silence it (useful if
-     the broadcast already carries its own bed), or ?vol=0.4 to trim the level. */
+  /* ── Raid countdown audio (opt-in) ──────────────────────────────────────
+     The countdown bed now plays from the Raid In button on the timer console,
+     so this page is SILENT by default — two pages open on one machine would
+     otherwise play the same bed twice, slightly out of phase.
+
+     Add ?audio=1 to this page's URL (e.g. on the OBS browser source) to put the
+     countdown into the stream mix instead of the operator's machine, and mute
+     the timer page with its own ?mute=1. ?vol=0.4 trims the level. */
   var params = new URLSearchParams(window.location.search);
-  var audioOn = params.get('mute') !== '1';
+  var audioOn = params.get('audio') === '1';
   var raidWasRunning = false;
 
   RaidAudio.configure({
@@ -331,6 +430,43 @@
     el.classList.toggle('empty', !value);
   }
 
+  /* ── Event sting ────────────────────────────────────────────────────────
+     Fires when the scoreboard records a raid preset. Dedupes on the event id:
+     only a value HIGHER than the one already seen triggers a banner, and the
+     first state seen just records the id — so loading the overlay mid-match
+     never replays the last event, and the 30s reconcile poll cannot re-fire
+     one that has already played. */
+  var cueHost = document.getElementById('cue');
+  var lastCueId = null;
+  var cueTimer = null;
+
+  function eventSting(cue) {
+    if (!cue) { return; }
+
+    if (lastCueId === null) { lastCueId = cue.id; return; }   // first load
+    if (cue.id <= lastCueId) { return; }                      // already shown
+    lastCueId = cue.id;
+
+    clearTimeout(cueTimer);
+    cueHost.className = 'cue cue-' + cue.type;
+    cueHost.innerHTML =
+      '<div class="cue-card">' +
+        '<div class="cue-ring"></div>' +
+        '<div class="cue-streaks"></div>' +
+        '<div class="cue-label">' + escapeHtml(cue.label) + '</div>' +
+        '<div class="cue-sub">' + escapeHtml(cue.team_name || '') + '</div>' +
+      '</div>';
+
+    // The CSS animation runs exactly 3s; clear the node once it has finished.
+    cueTimer = setTimeout(function () { cueHost.innerHTML = ''; }, 3000);
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   MatchLive.init({
     url: '{{ route('admin.matches.state', $match) }}',
     state: @json($match->toScreenPayload()),
@@ -354,6 +490,7 @@
       setSide('R', d.right);
       tag('part', d.period);
       tag('venue', d.venue);
+      eventSting(d.cue);
     }
   });
 })();

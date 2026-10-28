@@ -5,6 +5,24 @@
 @php
   $sides = [1 => $match->sideData(1), 2 => $match->sideData(2)];
   $resetMinutes = 20;
+
+  // Court order for the headline. The raid panels stay in team order and are
+  // re-ordered visually with CSS, so Raid In always posts for its own team.
+  [$courtLeft, $courtRight] = $match->sides();
+
+  /*
+   * Countdown bed played on Raid In, tried in order.
+   *
+   * The 16-bit file comes first because Chrome will not decode 24-bit PCM WAV,
+   * which is how the original was exported. Regenerate it after dropping in a
+   * new recording:
+   *
+   *     php artisan raid:audio-convert "Your File.wav"
+   */
+  $raidAudioSources = array_values(array_filter([
+      '/audio/raid-countdown.wav',
+      '/audio/' . rawurlencode('Kabbadi Countodwn Final.wav'),
+  ], fn ($path) => is_file(public_path(rawurldecode(ltrim($path, '/'))))));
 @endphp
 
 <div class="tc-title">Timer Controller</div>
@@ -14,8 +32,20 @@
   <a href="{{ route('admin.matches.screen',$match) }}" target="_blank" class="btn btn-danger btn-sm"><i class="fa-solid fa-tv"></i> Main Screen</a>
   <a href="{{ route('admin.matches.live',$match) }}" target="_blank" class="btn btn-ghost btn-sm"><i class="fa-solid fa-bolt"></i> Live Score</a>
   <a href="{{ route('admin.matches.index') }}" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left"></i> All Matches</a>
-  <span class="tc-match">{{ $sides[1]['name'] }} vs {{ $sides[2]['name'] }}</span>
+  <span class="tc-match">
+    <span id="tcTitleL">{{ $courtLeft['name'] }}</span> vs <span id="tcTitleR">{{ $courtRight['name'] }}</span>
+  </span>
   <span class="ml-conn warn" id="mlConn" title="Live = pushed over WebSockets; Polling = WebSocket server unreachable, falling back to HTTP">Connecting</span>
+  <span class="ml-conn bad" id="tcAudio" hidden></span>
+</div>
+
+<div class="ml-hint" id="mlHint" hidden>
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <span>
+    Live push is down — the screens are on the slower HTTP fallback, so the main
+    screen and live overlay will trail this console by a second or so.
+    Start the WebSocket server with <code>php artisan reverb:start</code> and leave it running.
+  </span>
 </div>
 
 {{-- ── Match clock ──────────────────────────────────────── --}}
@@ -63,7 +93,7 @@
 </div>
 
 {{-- ── Raid clocks ──────────────────────────────────────── --}}
-<div class="tc-grid">
+<div class="tc-grid {{ $match->courts_swapped ? 'swapped' : '' }}" data-court-grid>
   @foreach($sides as $side => $data)
     <div class="tc-card tc-t{{ $side }}">
       <div class="tc-team">{{ $data['name'] }}</div>
@@ -126,6 +156,11 @@
   .tc-note{margin-top:14px;max-width:820px}
 
   .tc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px}
+
+  /* Change of ends. Only the painted order moves — each panel keeps its own
+     team and so keeps posting to the right side. */
+  .tc-grid.swapped > .tc-t1{order:2}
+  .tc-grid.swapped > .tc-t2{order:1}
   .tc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 18px;text-align:center}
   .tc-team{font-size:26px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;overflow-wrap:break-word}
   .tc-t1 .tc-team{color:var(--t1)}
@@ -150,9 +185,49 @@
 
 @push('scripts')
 @include('admin.matches._engine')
+<script src="/js/raid-audio.js"></script>
 <script>
 (function () {
   var clockEl = document.getElementById('tcClock');
+
+  /* ── Raid countdown audio ───────────────────────────────────────────────
+     Plays on Raid In, stops on Raid Out. Add ?mute=1 to the page URL to
+     silence it, or ?vol=0.5 to trim the level. */
+  var params = new URLSearchParams(window.location.search);
+  var audioOn = params.get('mute') !== '1';
+
+  RaidAudio.configure({
+    sources: @json($raidAudioSources),
+    raidSeconds: {{ $match->raid_duration_seconds }},
+    volume: params.has('vol') ? parseFloat(params.get('vol')) : 0.85
+  });
+  RaidAudio.setEnabled(audioOn);
+
+  /* Only speaks up when something is actually wrong — a missing or undecodable
+     file would otherwise fail silently. */
+  function refreshAudioStatus() {
+    var chip = document.getElementById('tcAudio');
+    if (!chip) { return; }
+
+    if (!audioOn) {
+      chip.hidden = false;
+      chip.className = 'ml-conn warn';
+      chip.textContent = 'Audio muted';
+      return;
+    }
+
+    if (RaidAudio.status() === 'failed') {
+      chip.hidden = false;
+      chip.className = 'ml-conn bad';
+      chip.textContent = 'Audio file missing';
+      return;
+    }
+
+    chip.hidden = true;
+  }
+
+  setInterval(refreshAudioStatus, 2000);
+  refreshAudioStatus();
 
   MatchLive.init({
     url: '{{ route('admin.matches.state', $match) }}',
@@ -168,6 +243,18 @@
 
       if (act === 'in' || act === 'out') {
         var side = act === 'in' ? Number(body.get('team')) : null;
+
+        /* Countdown bed, driven straight off the button. Running here means we
+           are still inside the click, which satisfies the browser's autoplay
+           rule — no "click to enable" step is ever needed. Raid In on the other
+           side mid-raid restarts the bed from the top. */
+        if (act === 'in') {
+          RaidAudio.play();
+        } else {
+          RaidAudio.stop();
+        }
+        refreshAudioStatus();
+
         MatchLive.patch(function (s, now) {
           s.raid_team = side;
           s.clocks.raid.running = (side !== null);
@@ -229,6 +316,13 @@
     onState: function (s) {
       if (!s) { return; }
       document.getElementById('tcPart').textContent = s.period || 'No game part set';
+
+      // Change of ends, applied without a reload.
+      document.querySelectorAll('[data-court-grid]').forEach(function (grid) {
+        grid.classList.toggle('swapped', !!s.courts_swapped);
+      });
+      document.getElementById('tcTitleL').textContent = s.left.name;
+      document.getElementById('tcTitleR').textContent = s.right.name;
 
       document.querySelectorAll('[data-raid-in]').forEach(function (b) {
         b.classList.toggle('active', Number(b.dataset.raidIn) === s.raid_team);
