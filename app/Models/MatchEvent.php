@@ -28,13 +28,24 @@ class MatchEvent extends Model
      * Quick-scoring presets. Kabaddi values: a safe raid is worth the touch
      * point, a super raid takes three or more defenders out, and an all out
      * hands two points to the opposing side.
+     *
+     * Do or Die carries NO points. It is a situation, not an outcome — the
+     * third consecutive empty raid — so the console logs it to the match feed
+     * and throws the on-air sting without moving the scoreline. Whatever the
+     * raid then yields is entered with the normal buttons.
      */
     public const PRESETS = [
         'safe_raid'  => ['label' => 'Safe Raid',  'points' => 1],
         'super_raid' => ['label' => 'Super Raid', 'points' => 3],
-        'do_or_die'  => ['label' => 'Do or Die',  'points' => 1],
+        'do_or_die'  => ['label' => 'Do or Die',  'points' => 0],
         'all_out'    => ['label' => 'All Out',    'points' => 2],
     ];
+
+    /** Presets that only mark a situation rather than changing the score. */
+    public function isMarker(): bool
+    {
+        return (self::PRESETS[$this->type]['points'] ?? 0) === 0;
+    }
 
     public function match(): BelongsTo
     {

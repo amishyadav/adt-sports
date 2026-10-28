@@ -178,9 +178,15 @@ class MatchScreenController extends Controller
         // points go the other way.
         $scoringSide = $type === 'all_out' ? ($side === 1 ? 2 : 1) : $side;
 
-        $description = $type === 'all_out'
-            ? $this->sideName($match, $side) . ' all out — +' . $points . ' to ' . $this->sideName($match, $scoringSide)
-            : $label . ' — +' . $points . ' to ' . $this->sideName($match, $side);
+        if ($points === 0) {
+            // A marker such as Do or Die: feed entry and on-air sting only, no
+            // points, so the description must not read "+0 to ...".
+            $description = $label . ' raid — ' . $this->sideName($match, $side);
+        } elseif ($type === 'all_out') {
+            $description = $this->sideName($match, $side) . ' all out — +' . $points . ' to ' . $this->sideName($match, $scoringSide);
+        } else {
+            $description = $label . ' — +' . $points . ' to ' . $this->sideName($match, $side);
+        }
 
         $this->applyWithEvent($match, $type, $side, $points, function (TeamMatch $m) use ($type, $scoringSide, $points) {
             $this->addPoints($m, $scoringSide, $points);
