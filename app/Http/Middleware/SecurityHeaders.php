@@ -75,26 +75,23 @@ class SecurityHeaders
 
     /**
      * The exact WebSocket origin the live match screens connect to, or nothing
-     * at all when broadcasting is switched off.
+     * at all when there is no reachable endpoint.
      *
-     * Deliberately narrow: one host and one port, taken from the broadcast
-     * config rather than hard-coded or wildcarded, so this grants no more reach
-     * than the app already has. Both schemes are listed because browsers match
+     * Deliberately narrow: one host and one port, and read from the same helper
+     * the page itself uses, so the header and the client can never disagree
+     * about what is permitted. Both schemes are listed because browsers match
      * ws:// and wss:// separately and the deployment decides which is in use.
      */
     private function websocketOrigins(): array
     {
-        if (config('broadcasting.default') !== 'reverb') {
+        $endpoint = \App\Http\Controllers\Admin\MatchScreenController::socketEndpoint();
+
+        if (! $endpoint) {
             return [];
         }
 
-        $options = config('broadcasting.connections.reverb.options', []);
-        $host = $options['host'] ?? null;
-        $port = $options['port'] ?? null;
-
-        if (! $host || ! $port) {
-            return [];
-        }
+        $host = $endpoint['host'];
+        $port = $endpoint['port'];
 
         return ["ws://{$host}:{$port}", "wss://{$host}:{$port}"];
     }

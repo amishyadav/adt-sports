@@ -388,64 +388,151 @@
   var raidValEl = document.getElementById('raidVal');
   // #offline is driven by the shared engine when a poll fails.
 
-  var shown = { L: {{ $left['score'] }}, R: {{ $right['score'] }} };
+  /* ── Paint only what changed ──────────────────────────────────────────────
+     State arrives several times a second, and almost every frame says exactly
+     what the previous one said. Each of these compares against what is on
+     screen now and writes nothing when they agree.
 
-  function squad(el, left) {
+     It matters more here than on a console. This page is a video source: a
+     redundant write is wasted work on the machine running OBS, and rebuilding
+     a node that has not changed can show as a flicker on air — which is what
+     the squad pips were doing, since they were torn down and rebuilt on every
+     single frame.
+
+     The DOM is the comparison point wherever it can be, rather than a cache
+     kept alongside it. The markup is server-rendered with the opening scoreline
+     already in place, so there is nothing to seed and nothing that can fall out
+     of step with what a viewer is actually looking at. */
+
+  /** Write text only if it differs. Returns true when the DOM was touched. */
+  function write(el, value) {
+    var next = String(value == null ? '' : value);
+    if (el.textContent === next) { return false; }
+    el.textContent = next;
+    return true;
+  }
+
+  // The pips are built here, not server-rendered, so this one needs a record of
+  // what it last drew.
+  var paintedSquad = { L: null, R: null };
+
+  function squad(prefix, left) {
+    if (paintedSquad[prefix] === left) { return; }
+    paintedSquad[prefix] = left;
+
     var html = '';
     for (var i = 1; i <= FULL; i++) {
       html += '<span class="pip' + (i <= left ? '' : ' spent') + '"><i class="fa-solid fa-user"></i></span>';
     }
-    el.innerHTML = html;
+    document.getElementById('squad' + prefix).innerHTML = html;
   }
 
   /* Pop the number when a point lands so it reads on a stream even if the
-     viewer glanced away. */
+     viewer glanced away — and only then. An unchanged number must not re-run
+     the animation, which would read on air as a point being scored twice. */
   function setScore(prefix, value) {
-    if (shown[prefix] === value) { return; }
-    shown[prefix] = value;
-    document.getElementById('score' + prefix + 'v').textContent = value;
+    if (! write(document.getElementById('score' + prefix + 'v'), value)) {
+      return;
+    }
+
     var tile = document.getElementById('score' + prefix);
     tile.classList.remove('bump');
     void tile.offsetWidth;                    // restart the animation
     tile.classList.add('bump');
   }
 
-  function setSide(prefix, data) {
-    document.getElementById('name' + prefix).textContent = data.name;
-    setScore(prefix, data.score);
-    squad(document.getElementById('squad' + prefix), data.players);
-
+  function setCrest(prefix, data) {
     var crest = document.getElementById('crest' + prefix);
+    var img = crest.firstElementChild;
+
     if (data.logo) {
-      if (crest.firstElementChild) { crest.firstElementChild.src = data.logo; }
-      else { crest.innerHTML = '<img src="' + data.logo + '" alt="">'; }
-    } else {
-      crest.textContent = data.short;
+      // getAttribute, not .src: the property is resolved to an absolute URL and
+      // would never match the relative path the payload carries.
+      if (img) {
+        if (img.getAttribute('src') !== data.logo) { img.setAttribute('src', data.logo); }
+      } else {
+        crest.innerHTML = '<img src="' + data.logo + '" alt="">';
+      }
+      return;
     }
+
+    if (img) { crest.textContent = data.short; return; }   // logo was removed
+    write(crest, data.short);
+  }
+
+  function setSide(prefix, data) {
+    write(document.getElementById('name' + prefix), data.name);
+    setScore(prefix, data.score);
+    squad(prefix, data.players);
+    setCrest(prefix, data);
   }
 
   function tag(id, value) {
     var el = document.getElementById(id);
-    el.firstElementChild.textContent = value || '';
-    el.classList.toggle('empty', !value);
+    write(el.firstElementChild, value);
+    el.classList.toggle('empty', !value);     // already a no-op when unchanged
   }
 
   /* ── Event sting ────────────────────────────────────────────────────────
-     Fires when the scoreboard records a raid preset. Dedupes on the event id:
-     only a value HIGHER than the one already seen triggers a banner, and the
-     first state seen just records the id — so loading the overlay mid-match
-     never replays the last event, and the 30s reconcile poll cannot re-fire
-     one that has already played. */
+     Fires when the scoreboard records a raid preset.
+
+     The same event reaches this page twice by design. First as the console's
+     own guess, relayed the instant the operator clicks — that is what puts the
+     card on air in step with the scoreline instead of a round trip behind it.
+     Then as the server's record of it, carrying the real event id.
+
+     Authoritative cues are ordered by that id, so a cue already played, or one
+     that was already standing when this page loaded, never repeats. A guess
+     has no id yet, so each one books a slot which the matching record spends
+     silently. Clicking the same preset twice therefore still gives two stings,
+     and a slot expires so an action that failed cannot mute a later event. */
   var cueHost = document.getElementById('cue');
-  var lastCueId = null;
+  var lastCueId = 0;
+  var cueSeeded = false;
+  var lastPid = null;
+  var pendingCues = [];
   var cueTimer = null;
 
+  function bookGuess(cue) {
+    pendingCues.push({ key: cue.type + '|' + cue.team, at: Date.now() });
+  }
+
+  function spendGuess(cue) {
+    var cutoff = Date.now() - 10000;
+    pendingCues = pendingCues.filter(function (p) { return p.at > cutoff; });
+
+    var key = cue.type + '|' + cue.team;
+    for (var i = 0; i < pendingCues.length; i++) {
+      if (pendingCues[i].key === key) {
+        pendingCues.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
   function eventSting(cue) {
+    /* The first state this page sees is the match as it already stands. Record
+       where the feed had got to without replaying it — and do that even when
+       there is no event yet, so the first event of a fresh match still plays.
+       Keying this off "no cue seen yet" swallowed it. */
+    if (!cueSeeded) {
+      cueSeeded = true;
+      lastCueId = cue ? cue.id : 0;
+      return;
+    }
+
     if (!cue) { return; }
 
-    if (lastCueId === null) { lastCueId = cue.id; return; }   // first load
-    if (cue.id <= lastCueId) { return; }                      // already shown
-    lastCueId = cue.id;
+    if (cue.provisional) {
+      if (cue.pid && cue.pid === lastPid) { return; }   // same guess, re-sent
+      lastPid = cue.pid;
+      bookGuess(cue);
+    } else {
+      if (cue.id <= lastCueId) { return; }              // already shown
+      lastCueId = cue.id;
+      if (spendGuess(cue)) { return; }                  // played on the click
+    }
 
     clearTimeout(cueTimer);
     cueHost.className = 'cue cue-' + cue.type;
@@ -468,15 +555,18 @@
   }
 
   MatchLive.init({
-    url: '{{ route('admin.matches.state', $match) }}',
+    url: '{{ route('admin.matches.state', $match, false) }}',
     state: @json($match->toScreenPayload()),
     socket: @json($socket),
 
     onPaint: function (t) {
-      clockEl.textContent = t.matchClock;
+      /* Runs about four times a second off the shared ticker, while both of
+         these change at most once a second — so three in four frames have
+         nothing to say and write nothing. */
+      write(clockEl, t.matchClock);
       mclockEl.classList.toggle('stopped', !t.matchRunning);
 
-      raidValEl.textContent = t.raidSeconds;
+      write(raidValEl, t.raidSeconds);
       centreEl.classList.toggle('idle', !t.raidRunning);
       // Flag the last ten seconds of a raid, the moment the play turns on.
       centreEl.classList.toggle('warn', t.raidRunning && t.raidSeconds <= 10);

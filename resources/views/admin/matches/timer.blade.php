@@ -42,9 +42,10 @@
 <div class="ml-hint" id="mlHint" hidden>
   <i class="fa-solid fa-triangle-exclamation"></i>
   <span>
-    Live push is down — the screens are on the slower HTTP fallback, so the main
-    screen and live overlay will trail this console by a second or so.
-    Start the WebSocket server with <code>php artisan reverb:start</code> and leave it running.
+    Live push is down, so the screens are refreshing over HTTP instead and will
+    trail this console by about a second. Scoring is unaffected. To restore
+    instant updates, check <code>BROADCAST_CONNECTION</code> and the
+    <code>PUSHER_*</code> keys in <code>.env</code>.
   </span>
 </div>
 
@@ -230,7 +231,7 @@
   refreshAudioStatus();
 
   MatchLive.init({
-    url: '{{ route('admin.matches.state', $match) }}',
+    url: '{{ route('admin.matches.state', $match, false) }}',
     state: @json($match->toScreenPayload()),
     socket: @json($socket),
 

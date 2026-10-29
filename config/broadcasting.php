@@ -17,6 +17,29 @@ return [
 
     'connections' => [
 
+        /*
+         * Pusher's hosted service. The right choice on hosting without shell
+         * access: the app only makes outbound HTTPS calls and browsers connect
+         * to Pusher directly, so nothing long-running has to be kept alive.
+         * Set BROADCAST_CONNECTION=pusher and fill in the four PUSHER_* keys.
+         */
+        'pusher' => [
+            'driver'  => 'pusher',
+            'key'     => env('PUSHER_APP_KEY'),
+            'secret'  => env('PUSHER_APP_SECRET'),
+            'app_id'  => env('PUSHER_APP_ID'),
+            'options' => [
+                'cluster' => env('PUSHER_APP_CLUSTER', 'ap2'),
+                'useTLS'  => true,
+            ],
+            'client_options' => [
+                // The scoreboard must never hang waiting on the broadcast API;
+                // MatchScreenController swallows failures either way.
+                'timeout'         => 4,
+                'connect_timeout' => 3,
+            ],
+        ],
+
         'reverb' => [
             'driver' => 'reverb',
             'key'    => env('REVERB_APP_KEY'),
