@@ -149,7 +149,7 @@
   }
 
   MatchLive.init({
-    url: '{{ route('admin.matches.state', $match) }}',
+    url: '{{ route('admin.matches.state', $match, false) }}',
     state: @json($match->toScreenPayload()),
     socket: @json($socket),
 

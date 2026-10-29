@@ -69,27 +69,81 @@ class MatchScreenController extends Controller
 
     /**
      * What the browser needs to subscribe to this match's channel, or null when
-     * broadcasting is switched off — in which case the screens silently fall
+     * no reachable WebSocket endpoint exists — in which case the screens fall
      * back to the HTTP reconcile and nothing breaks.
      *
+     * Supports self-hosted Reverb and Pusher's hosted service, which speak the
+     * same protocol. Pusher matters for shared hosting: it needs no long-running
+     * process, only outbound HTTPS, so it works where `reverb:start` cannot.
+     *
      * Only the app KEY goes to the browser. That value is a public client
-     * identifier by design (same role as a Pusher app key); the app SECRET is
-     * server-side only and must never be rendered into a page.
+     * identifier by design; the app SECRET is server-side only and must never
+     * be rendered into a page.
      */
     private function socketConfig(TeamMatch $match): ?array
     {
-        $reverb = config('broadcasting.connections.reverb');
+        $endpoint = self::socketEndpoint();
 
-        if (config('broadcasting.default') !== 'reverb' || empty($reverb['key'])) {
+        return $endpoint ? $endpoint + ['matchId' => $match->id] : null;
+    }
+
+    /**
+     * The WebSocket endpoint the browser should dial, shared with the CSP so the
+     * header and the client can never disagree about what is allowed.
+     *
+     * @return array{key: string, host: string, port: int, scheme: string}|null
+     */
+    public static function socketEndpoint(): ?array
+    {
+        $driver = config('broadcasting.default');
+
+        if ($driver === 'pusher') {
+            $pusher = config('broadcasting.connections.pusher');
+            $cluster = $pusher['options']['cluster'] ?? null;
+
+            if (empty($pusher['key']) || empty($cluster)) {
+                return null;
+            }
+
+            return [
+                'key'    => $pusher['key'],
+                'host'   => 'ws-' . $cluster . '.pusher.com',
+                'port'   => 443,
+                'scheme' => 'https',
+            ];
+        }
+
+        if ($driver !== 'reverb') {
+            return null;
+        }
+
+        $reverb = config('broadcasting.connections.reverb');
+        if (empty($reverb['key'])) {
+            return null;
+        }
+
+        $host = (string) ($reverb['options']['host'] ?? '');
+
+        /*
+         * A loopback Reverb host only works when the browser is on the same
+         * machine as the server. On shared hosting it never can be — and the
+         * plan cannot run `reverb:start` anyway — so advertising it would leave
+         * every screen retrying a socket that can never open, and the console
+         * telling the operator to run a command they have no shell for.
+         * Report no endpoint instead and let the HTTP reconcile do the work.
+         */
+        $loopback = ['127.0.0.1', 'localhost', '0.0.0.0', '::1'];
+
+        if (in_array($host, $loopback, true)
+            && ! in_array(request()?->getHost(), ['127.0.0.1', 'localhost', '::1'], true)) {
             return null;
         }
 
         return [
-            'matchId' => $match->id,
-            'key'     => $reverb['key'],
-            'host'    => $reverb['options']['host'],
-            'port'    => (int) $reverb['options']['port'],
-            'scheme'  => $reverb['options']['scheme'],
+            'key'    => $reverb['key'],
+            'host'   => $host,
+            'port'   => (int) ($reverb['options']['port'] ?? 8080),
+            'scheme' => (string) ($reverb['options']['scheme'] ?? 'http'),
         ];
     }
 
@@ -111,7 +165,42 @@ class MatchScreenController extends Controller
             $payload['can_undo'] = $payload['feed'] !== [];
         }
 
-        return response()->json($payload);
+        $payload['server_ms'] = $this->serverMs();
+
+        /*
+         * Never let anything cache this.
+         *
+         * It is a live clock: a copy even a few seconds old makes the boards
+         * disagree with the operator's console. Laravel's own response cache
+         * already skips authenticated admin routes, but shared hosting often
+         * sits behind a server-level cache (LiteSpeed/LSCache on Hostinger, for
+         * instance) that will happily cache a 200 JSON GET on its own. These
+         * headers opt out of all of them, and the client adds a cache-busting
+         * parameter as well for proxies that ignore headers.
+         */
+        return response()
+            ->json($payload)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0')
+            ->header('X-LiteSpeed-Cache-Control', 'no-cache')
+            ->header('X-Accel-Expires', '0')
+            ->header('X-Server-Ms', (string) $payload['server_ms']);
+    }
+
+    /**
+     * Milliseconds this request spent inside the application.
+     *
+     * The browser can only see the total round trip, which on a server that
+     * answers one request at a time is mostly spent waiting in line behind the
+     * other screens. Reporting the application's own share separates "the
+     * server is slow" from "the request queued", which have different fixes.
+     */
+    private function serverMs(): ?int
+    {
+        return defined('LARAVEL_START')
+            ? (int) round((microtime(true) - LARAVEL_START) * 1000)
+            : null;
     }
 
     /* ── Scoring ───────────────────────────────────────── */
@@ -430,10 +519,17 @@ class MatchScreenController extends Controller
         return $this->loaded($match)->sideData($side)['name'];
     }
 
-    /** Both sides are needed by every screen — load them once, here. */
+    /**
+     * Both sides are needed by every screen — load them once, here.
+     *
+     * loadMissing, not load: load() re-queries both teams every time it is
+     * called, and a single scoring action calls this three times (once to name
+     * the side in the feed description, then again when composing the reply).
+     * That was four queries for two rows that cannot change mid-request.
+     */
     private function loaded(TeamMatch $match): TeamMatch
     {
-        return $match->load(['team1', 'team2']);
+        return $match->loadMissing(['team1', 'team2']);
     }
 
     /**
@@ -446,23 +542,35 @@ class MatchScreenController extends Controller
      */
     private function respond(TeamMatch $match, string $message, bool $ok = true)
     {
-        $fresh = $this->loaded($match->fresh());
-        $state = $fresh->toScreenPayload();
+        /*
+         * Re-read the match row so the reply reflects anything a second console
+         * committed while this request was in flight — but carry the teams over
+         * rather than fetching them again. fresh() returns a bare instance, so
+         * the two team rows were being selected a second time for names and
+         * crests that cannot have changed since the top of this request.
+         */
+        $fresh = $match->fresh();
+        $fresh->setRelations($match->getRelations());
+
+        $state = $this->loaded($fresh)->toScreenPayload();
 
         if ($ok) {
-            $this->push($fresh, $state);
+//            $this->push($fresh, $state);
         }
 
         if (request()->wantsJson()) {
             $feed = $this->feed($fresh);
+            $serverMs = $this->serverMs();
 
             return response()->json([
                 'ok'       => $ok,
                 'message'  => $message,
-                'state'    => $state,
+                // Timing rides on the state copy the console applies, not on
+                // the broadcast payload, which every screen shares.
+                'state'    => $state + ['server_ms' => $serverMs],
                 'feed'     => $feed,
                 'can_undo' => $feed !== [],
-            ]);
+            ])->header('X-Server-Ms', (string) $serverMs);
         }
 
         return back()->with($ok ? 'success' : 'error', $message);
@@ -471,19 +579,50 @@ class MatchScreenController extends Controller
     /**
      * Push the new state to every open screen over WebSockets.
      *
-     * Deliberately best-effort: a scoreboard operator must never lose a point
-     * because the WebSocket server is down or restarting. If the push fails we
-     * report it and carry on — the screens still have their HTTP reconcile poll
-     * as a fallback, and the operator's own console already has this state in
-     * the response body.
+     * Skipped entirely when no reachable endpoint exists. The only consumers of
+     * a broadcast are browsers, so if they could never open the socket there is
+     * nothing to push to — and attempting it anyway would add a connect timeout
+     * plus a logged exception to every single scoring click, which on shared
+     * hosting quietly fills the log with noise that hides real errors.
+     *
+     * Otherwise best-effort: an operator must never lose a point because the
+     * WebSocket server is restarting. The screens still have the HTTP reconcile,
+     * and the console already has this state in the response body.
      */
     private function push(TeamMatch $match, array $state): void
     {
-        try {
-            MatchStateUpdated::dispatch($match->id, $state);
-        } catch (\Throwable $e) {
-            report($e);
+        if (! self::socketEndpoint()) {
+            return;
         }
+
+        $matchId = $match->id;
+
+        /*
+         * Deferred until the response has been sent.
+         *
+         * Publishing is an outbound HTTPS call, and every web request is a
+         * fresh process, so each one pays its own TLS handshake: measured at
+         * 283–369 ms to Pusher's ap2 cluster. Inline, that was added to every
+         * single tap the operator made.
+         *
+         * Running it from a terminating callback costs the screens nothing —
+         * the frame goes out just as soon — while the console stops waiting for
+         * it. Response::send() calls fastcgi_finish_request() where it exists,
+         * so under PHP-FPM the browser is released before this runs at all.
+         *
+         * Still best effort: an operator must never lose a point because the
+         * broadcast failed. The console already has this state in its response
+         * body and hands it to the other screens in the same browser itself, so
+         * a dropped publish only affects a screen in a separate browser — OBS —
+         * which still has its own reconcile.
+         */
+        app()->terminating(function () use ($matchId, $state) {
+            try {
+                MatchStateUpdated::dispatch($matchId, $state);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        });
     }
 
     /** The newest entries in the match feed, shaped for the console. */

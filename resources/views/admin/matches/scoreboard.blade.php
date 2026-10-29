@@ -35,9 +35,10 @@
 <div class="ml-hint" id="mlHint" hidden>
   <i class="fa-solid fa-triangle-exclamation"></i>
   <span>
-    Live push is down — the screens are on the slower HTTP fallback, so the main
-    screen and live overlay will trail this console by a second or so.
-    Start the WebSocket server with <code>php artisan reverb:start</code> and leave it running.
+    Live push is down, so the screens are refreshing over HTTP instead and will
+    trail this console by about a second. Scoring is unaffected. To restore
+    instant updates, check <code>BROADCAST_CONNECTION</code> and the
+    <code>PUSHER_*</code> keys in <code>.env</code>.
   </span>
 </div>
 
@@ -337,42 +338,120 @@
     if (typeof canUndo === 'boolean') { document.getElementById('sbUndo').disabled = !canUndo; }
   }
 
+  /* ── Optimistic scoring ───────────────────────────────────────────────────
+     These write the operator's click into the shared state rather than
+     straight into this page's DOM. Two things follow from that: this console
+     repaints from onState exactly as it does for a server frame, and the
+     engine relays the change to the other screens in this browser, so the
+     overlay and the main screen show the point on the same frame as the click
+     instead of a round trip later. The server's own frame overwrites it a
+     moment afterwards, so a rejected action corrects itself. */
+
+  var PRESETS = @json(\App\Models\MatchEvent::PRESETS);
+
+  /* left, right and teams[] are three views of the same two sides — the boards
+     read left/right, this console reads teams[] — so a patch has to move all
+     of them or the screens disagree. */
+  function eachSide(s, side, fn) {
+    [s.left, s.right].concat(s.teams || []).forEach(function (d) {
+      if (d && d.side === side) { fn(d); }
+    });
+  }
+
+  // Clamped exactly as the server clamps it, so the guess cannot show a number
+  // the server would refuse.
+  function addScore(s, side, delta) {
+    eachSide(s, side, function (d) {
+      d.score = Math.max(0, Math.min(9999, d.score + delta));
+    });
+  }
+
+  function setPlayers(s, side, count) {
+    eachSide(s, side, function (d) { d.players = count; });
+  }
+
+  /* The sting the overlay is about to play, worked out locally. The server
+     allocates the event id, so there is none to send; it goes out flagged
+     provisional with a token the overlay uses to collapse it against the
+     authoritative cue that follows.
+
+     The token is a per-page tag plus a counter. The counter alone would have
+     two consoles open on the same match minting the same token, and the
+     overlay would then treat the second one as a repeat and swallow a sting. */
+  var cueTag = Math.random().toString(36).slice(2, 8);
+  var cueSeq = 0;
+
+  function provisionalCue(s, type, credited) {
+    var preset = PRESETS[type];
+    if (!preset) { return s.cue; }
+
+    var name = null;
+    eachSide(s, credited, function (d) { name = d.name; });
+
+    return {
+      id: s.cue ? s.cue.id : 0,
+      type: type,
+      label: preset.label,
+      points: preset.points,
+      team: credited,
+      team_name: name,
+      provisional: true,
+      pid: cueTag + ':' + (++cueSeq)
+    };
+  }
+
   MatchLive.init({
-    url: '{{ route('admin.matches.state', $match) }}?feed=1',
+    url: '{{ route('admin.matches.state', $match, false) }}?feed=1',
     state: @json($match->toScreenPayload()),
     socket: @json($socket),
 
-    /* Optimistic update: show the operator's point the moment they click, so
-       the console feels instant regardless of round-trip time. The response (or
-       the pushed frame) overwrites this with the authoritative score a beat
-       later, so a rejected action corrects itself. */
+    /* Apply the operator's click to the shared state immediately — see the
+       note above the helpers. Mirrors the server's own rules so the guess and
+       the record agree. */
     onSend: function (form, body) {
-        var side = Number(body.get('team'));
-        if (!side) { return; }
+      var side = Number(body.get('team'));
+      if (!side) { return; }                 // game part, status, swap, undo
 
-        var delta = null;
-        if (body.has('delta')) {
-            delta = Number(body.get('delta'));
-        } else if (body.has('direction')) {
-            delta = Number(body.get('amount')) * (body.get('direction') === 'minus' ? -1 : 1);
-        } else if (body.has('type')) {
-            var pts = @json(collect(\App\Models\MatchEvent::PRESETS)->map->points);
-            delta = pts[body.get('type')] || 0;
-            // An all out scores for the opposing side.
-            if (body.get('type') === 'all_out') { side = side === 1 ? 2 : 1; }
-        } else if (body.has('count')) {
-            var dot = Number(body.get('count'));
-            document.querySelectorAll('.sb-dot').forEach(function (b) {
-                if (Number(b.dataset.side) === side) {
-                    b.classList.toggle('on', Number(b.dataset.count) === dot);
-                }
-            });
-            return;
+      // The 1–7 players-left selector: squad only, no score.
+      if (body.has('count')) {
+        var count = Number(body.get('count'));
+        if (isNaN(count)) { return; }
+        MatchLive.patch(function (s) { setPlayers(s, side, count); });
+        return;
+      }
+
+      var type = body.has('type') ? body.get('type') : null;
+      var delta = 0;
+
+      if (body.has('delta')) {
+        delta = Number(body.get('delta'));
+      } else if (body.has('direction')) {
+        delta = Number(body.get('amount')) * (body.get('direction') === 'minus' ? -1 : 1);
+      } else if (type && PRESETS[type]) {
+        delta = PRESETS[type].points;
+      }
+
+      if (isNaN(delta)) { delta = 0; }
+
+      // An all out is recorded against the side that was wiped out, but the
+      // points go the other way — and both squads come back to full strength.
+      var credited = (type === 'all_out') ? (side === 1 ? 2 : 1) : side;
+
+      MatchLive.patch(function (s, at, replaying) {
+        // A zero-point marker (Do or Die) must not nudge the score at all.
+        if (delta !== 0) { addScore(s, credited, delta); }
+
+        if (type === 'all_out') {
+          setPlayers(s, 1, s.full_squad);
+          setPlayers(s, 2, s.full_squad);
         }
 
-        // A zero-point marker (Do or Die) must not nudge the score at all.
-        if (delta === null || isNaN(delta) || delta === 0) { return; }
-        setScore(side, Math.max(0, shown[side] + delta));
+        /* The score has to be re-applied on top of every frame that lands
+           until the server acknowledges this tap — but the sting must not be.
+           It is a one-off announcement, not state, and raising it again on a
+           replay would punch the card on air a second time. */
+        if (type && !replaying) { s.cue = provisionalCue(s, type, credited); }
+      });
     },
 
     // Runs ~4×/sec off the shared clock, so this chip, the Timer page and the
