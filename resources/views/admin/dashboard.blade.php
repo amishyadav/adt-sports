@@ -64,7 +64,7 @@
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div class="half-grid">
   <div class="table-wrap">
     <div class="table-hd"><h3>Recent Articles</h3><a href="{{ route('admin.articles.index') }}" class="btn btn-ghost btn-sm">View All</a></div>
     <table>

@@ -326,3 +326,19 @@ footer{background:#1c1917;color:rgba(245,240,235,.65);margin-top:60px}
   .bn-item.active{color:var(--brand)}
 }
 @media(max-width:480px){.cards-grid{grid-template-columns:1fr}.art-title{font-size:26px}.art-body{font-size:17px}}
+
+/* ── Article body: constrain editor-authored content ────────────────────────
+   The body is HTML written in the editor, so it can contain things this layout
+   never sized. The purifier allows pre, code and iframe (video hosts only), and
+   any of those can be wider than a phone: a code block with long lines, an
+   embed pasted with width/height attributes, or an unbroken URL in a link.
+   Each pushes the whole page sideways, which on a phone reads as a broken site
+   rather than a wide element.
+
+   Images were already covered by `.art-body img`; these were not. */
+.art-body{overflow-wrap:break-word}
+.art-body pre{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.art-body code{overflow-wrap:break-word}
+/* A pasted embed carries its own width/height; cap the width and let the
+   editor's own .embed-responsive wrapper handle ratio where it is used. */
+.art-body iframe{max-width:100%}
