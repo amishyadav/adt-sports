@@ -6,7 +6,7 @@
   <div><h1>Categories</h1><div class="page-hd-sub">{{ $categories->count() }} categories</div></div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start">
+<div class="split-grid">
 
   {{-- Category list --}}
   <div class="table-wrap">

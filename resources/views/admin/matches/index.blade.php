@@ -6,7 +6,7 @@
   <div><h1>Matches</h1><div class="page-hd-sub">{{ $matches->total() }} {{ Str::plural('match', $matches->total()) }}</div></div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start">
+<div class="split-grid">
 
   {{-- Match list --}}
   <div class="table-wrap">

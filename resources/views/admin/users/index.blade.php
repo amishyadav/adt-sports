@@ -6,7 +6,7 @@
   <div><h1>Team Members</h1><div class="page-hd-sub">{{ $users->count() }} members</div></div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start">
+<div class="split-grid">
 
   <div class="table-wrap">
     <div class="table-hd"><h3>All Users</h3></div>

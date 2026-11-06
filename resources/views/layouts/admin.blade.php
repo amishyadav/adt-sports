@@ -128,6 +128,13 @@ input[type=checkbox].toggle-cb:checked::after{left:19px}
 /* EDITOR GRID */
 .editor-grid{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start}
 
+/* WORKING GRIDS — a list beside a form panel, or two equal panels.
+   Here rather than inline on each page: four admin index pages carried the
+   same inline grid, and an inline style cannot be overridden by a media
+   query, so none of them could ever collapse on a phone. */
+.split-grid{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+.half-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
 /* COVER */
 .cover-preview{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:linear-gradient(145deg,#1A1410,#221808);display:flex;align-items:center;justify-content:center;font-size:60px;margin-bottom:12px;border:1px solid var(--border);position:relative;cursor:pointer}
 .cover-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;font-size:14px;color:#fff;font-weight:600;gap:6px}
@@ -204,30 +211,161 @@ nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
 /* Table readability — subtle zebra striping + brand-tinted hover */
 .table-wrap tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
 .table-wrap tbody tr:hover td{background:rgba(212,66,10,.06)}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════════════════
+   The panel was built for a desktop only: a fixed 230px sidebar inside a flex
+   row, with the page itself unable to scroll (body had overflow:hidden and a
+   locked 100vh). On a 360px phone that left about 130px for the content.
+
+   Three ideas below, in order:
+     1. the sidebar becomes a drawer, off-canvas by default, over a backdrop
+     2. the page scrolls normally, because a locked viewport plus an inner
+        scroller fights the browser's own address-bar behaviour on mobile
+     3. every fixed multi-column grid collapses, and wide tables scroll
+        sideways within their card rather than stretching the layout
+
+   One breakpoint does the structural work (1024px, where a 230px sidebar stops
+   being affordable next to a data table), with a second at 560px for the finer
+   spacing and type. */
+
+/* The drawer handle and the backdrop only exist below the breakpoint. */
+.nav-toggle{display:none;width:38px;height:38px;flex-shrink:0;align-items:center;justify-content:center;
+            border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--ink);font-size:16px}
+.nav-toggle:hover{background:var(--border)}
+.sidebar-backdrop{display:none}
+
+@media (max-width:1024px){
+  /* Let the document scroll. The shell no longer needs to be exactly one
+     viewport tall, and min-height avoids the short-page gap. */
+  body{height:auto;overflow:visible}
+  .app-shell{height:auto;min-height:100vh}
+  .main-row{overflow:visible}
+  .content-area{overflow:visible}
+
+  .nav-toggle{display:inline-flex}
+
+  /* The logo no longer reserves a sidebar-width column beside it. */
+  .topbar{position:sticky;top:0;z-index:40;padding:0 12px;gap:10px}
+  .tl-logo{width:auto}
+
+  /* Off-canvas drawer. Fixed rather than absolute so it is unaffected by how
+     far the page happens to be scrolled. */
+  .sidebar{position:fixed;top:var(--topbar);left:0;bottom:0;z-index:45;
+           width:min(84vw,var(--sidebar));
+           transform:translateX(-100%);transition:transform .22s ease;
+           box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .sidebar.open{transform:translateX(0)}
+
+  .sidebar-backdrop{display:block;position:fixed;inset:var(--topbar) 0 0;z-index:44;
+                    background:rgba(0,0,0,.5);opacity:0;transition:opacity .22s ease;pointer-events:none}
+  .sidebar-backdrop.open{opacity:1;pointer-events:auto}
+  .sidebar-backdrop[hidden]{display:none}
+
+  .content-area{padding:18px 14px}
+
+  /* Fixed multi-column grids: stack them. */
+  .stat-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .editor-grid,.split-grid,.half-grid{grid-template-columns:1fr}
+  .settings-row{grid-template-columns:1fr;gap:6px}
+  .sr-label{padding-top:0}
+
+  /* A data table keeps its column widths and scrolls inside its own card,
+     which is far easier to read than squeezing eight columns into 360px.
+     overflow-y stays hidden so the rounded corners still clip. */
+  .table-wrap{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+  .table-wrap table{min-width:720px}
+  .table-hd,.pagination-wrap,nav[aria-label="Pagination"]{position:sticky;left:0}
+
+  /* Tabs and filter rows scroll rather than wrap into a tall stack. */
+  .tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab-btn{white-space:nowrap;flex-shrink:0}
+
+  .search-input{width:100%;min-width:0}
+  .table-filters{width:100%}
+  .table-filters form{flex:1;display:flex;gap:8px}
+
+  /* Touch targets. 38px is the smallest that is comfortable with a thumb. */
+  .btn,.logout-btn,.nav-toggle{min-height:38px}
+  .btn-sm{min-height:34px}
+  .nav-item{padding:11px 12px}
+  .rte-btn{width:34px;height:32px}
+
+  /* iOS zooms the whole page in when a focused field is under 16px, and does
+     not zoom back out — which strands the operator on a page wider than the
+     screen. Checkboxes, radios and colour wells are excluded because they have
+     no text and sizing them would change the control itself.
+
+     !important earns its place: the settings page sets font-size inline on
+     every one of its inputs, and an inline declaration outranks any media
+     query, so these fields could not otherwise be reached. */
+  input:not([type=checkbox]):not([type=radio]):not([type=color]),
+  textarea,
+  select{font-size:16px !important}
+
+  /* Two columns of category checkboxes become one line each. */
+  .field .cat-checks{grid-template-columns:1fr}
+
+  #rteEditor{min-height:280px;max-height:none}
+}
+
+@media (max-width:560px){
+  .content-area{padding:14px 11px}
+  .stat-grid{grid-template-columns:1fr}
+  .page-hd h1{font-size:18px}
+  .topbar{gap:8px}
+
+  /* Labels fold away so the three controls still fit beside the logo. */
+  .hide-sm{display:none}
+  .tl-right{gap:6px}
+  .user-chip{padding:5px 7px}
+
+  .table-wrap table{min-width:580px}
+  .emoji-grid{grid-template-columns:repeat(6,1fr)}
+
+  /* Full-width actions read better than a cramped row of small buttons. */
+  .page-hd .btn{flex:1;justify-content:center}
+}
 </style>
 @stack('styles')
 </head>
 <body>
 <div class="app-shell">
   <div class="topbar">
+    {{-- Shown only below the sidebar breakpoint; opens the nav as a drawer. --}}
+    <button type="button" class="nav-toggle" id="navToggle"
+            aria-label="Open navigation" aria-expanded="false" aria-controls="adminSidebar">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+
     <a href="{{ route('admin.dashboard') }}" class="tl-logo" style="text-decoration:none">
       <img src="/uploads/logo.png" width="30" height="30" alt="ADT">
       <span class="tl-name"><em>ADT</em> Sports</span>
     </a>
     <div class="tl-right">
-      <a href="{{ route('home') }}" target="_blank" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> View Site</a>
+      <a href="{{ route('home') }}" target="_blank" class="btn btn-ghost btn-sm">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> <span class="hide-sm">View Site</span>
+      </a>
       <div class="user-chip">
         <div class="user-av">{{ auth()->user()->initials }}</div>
-        <span style="font-size:13px;font-weight:500">{{ auth()->user()->name }}</span>
+        <span class="hide-sm" style="font-size:13px;font-weight:500">{{ auth()->user()->name }}</span>
       </div>
       <form action="{{ route('admin.logout') }}" method="POST" style="display:inline">
-        @csrf <button type="submit" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</button>
+        @csrf
+        <button type="submit" class="logout-btn">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="hide-sm">Sign Out</span>
+        </button>
       </form>
     </div>
   </div>
 
+  {{-- Tap-anywhere backdrop for the mobile drawer. --}}
+  <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
   <div class="main-row">
-    <nav class="sidebar">
+    <nav class="sidebar" id="adminSidebar">
       <div class="nav-section">
         <div class="nav-sec-label">Main</div>
         <a href="{{ route('admin.dashboard') }}" class="nav-item {{ request()->routeIs('admin.dashboard') ? 'active':'' }}">
@@ -296,6 +434,58 @@ nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
     </div>
   </div>
 </div>
+
+<script>
+/*
+ * Mobile navigation drawer.
+ *
+ * The sidebar is off-canvas below 1024px (see the responsive block in the
+ * stylesheet). This only has to move a class around; the breakpoint decides
+ * whether that class means anything, so there is no width to keep in step here.
+ */
+(function () {
+  var toggle = document.getElementById('navToggle');
+  var sidebar = document.getElementById('adminSidebar');
+  var backdrop = document.getElementById('sidebarBackdrop');
+
+  if (!toggle || !sidebar || !backdrop) { return; }
+
+  function setOpen(open) {
+    sidebar.classList.toggle('open', open);
+    backdrop.hidden = false;
+    backdrop.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    /* Hold the page still while the drawer is over it, so a scroll gesture
+       aimed at the nav does not move the content underneath. */
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!sidebar.classList.contains('open'));
+  });
+
+  backdrop.addEventListener('click', function () { setOpen(false); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { setOpen(false); }
+  });
+
+  /* Following a link navigates away, but closing first means the drawer is not
+     still sitting open behind the new page if it comes from the cache. */
+  sidebar.addEventListener('click', function (e) {
+    if (e.target.closest('a')) { setOpen(false); }
+  });
+
+  /* Rotating a phone to landscape can cross the breakpoint, where the drawer
+     becomes a static column again — the body lock has to come off with it. */
+  window.addEventListener('resize', function () {
+    if (window.innerWidth > 1024 && sidebar.classList.contains('open')) {
+      setOpen(false);
+    }
+  });
+})();
+</script>
 @stack('scripts')
 </body>
 </html>
