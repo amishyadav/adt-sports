@@ -56,7 +56,7 @@
 
   .raid{background:var(--green);border-radius:clamp(8px,1vw,16px);
         padding:clamp(8px,1.6vh,22px) clamp(16px,2.2vw,38px);text-align:center;width:100%}
-  .raid .val{font-size:min(clamp(30px,4.2vw,72px),10.5vh);line-height:1;font-weight:900;
+  .raid .val{font-size:min(clamp(73px,48.2vw,122px),14.5vh);line-height:1;font-weight:900;
              font-variant-numeric:tabular-nums;white-space:nowrap}
   .raid.idle{background:#1F2937}
   .raid.idle .val,.raid.idle .cap{color:rgba(255,255,255,.5)}

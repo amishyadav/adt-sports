@@ -13,6 +13,8 @@ use App\Http\Controllers\Admin\ActivityController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\TeamMatchController;
 use App\Http\Controllers\Admin\MatchScreenController;
+use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Frontend\FrontendController;
 use App\Http\Controllers\Frontend\SeoController;
 use App\Http\Controllers\Frontend\SubscriberController as PublicSubscriberController;
@@ -138,10 +140,28 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         Route::put('/comments/{comment}/hide',   [AdminCommentController::class, 'hide'])->name('comments.hide');
         Route::delete('/comments/{comment}',     [AdminCommentController::class, 'destroy'])->name('comments.destroy');
 
-        // Users
+        // Users — add and edit are their own pages.
+        // NOTE: /users/create is declared before /users/{user}/edit so the
+        // literal path is not swallowed by the model binding.
         Route::get('/users',                     [UserController::class, 'index'])->name('users.index');
+        Route::get('/users/create',              [UserController::class, 'create'])->name('users.create');
         Route::post('/users',                    [UserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/edit',         [UserController::class, 'edit'])->name('users.edit');
+        Route::put('/users/{user}',              [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}',           [UserController::class, 'destroy'])->name('users.destroy');
+
+        // Roles — naming only; what each one can do is set on the screen below.
+        Route::get('/roles',                     [RoleController::class, 'index'])->name('roles.index');
+        Route::post('/roles',                    [RoleController::class, 'store'])->name('roles.store');
+        Route::put('/roles/{role}',              [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{role}',           [RoleController::class, 'destroy'])->name('roles.destroy');
+
+        // Permissions, and the grid that grants them to roles.
+        Route::get('/permissions',               [PermissionController::class, 'index'])->name('permissions.index');
+        Route::post('/permissions',              [PermissionController::class, 'store'])->name('permissions.store');
+        Route::put('/permissions/sync',          [PermissionController::class, 'sync'])->name('permissions.sync');
+        Route::put('/permissions/{permission}',  [PermissionController::class, 'update'])->name('permissions.update');
+        Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
 
         // Newsletter subscribers (PII — full admins only)
         Route::get('/subscribers',               [AdminSubscriberController::class, 'index'])->name('subscribers.index');

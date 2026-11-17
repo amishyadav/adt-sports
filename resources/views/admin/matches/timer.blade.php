@@ -11,18 +11,29 @@
   [$courtLeft, $courtRight] = $match->sides();
 
   /*
-   * Countdown bed played on Raid In, tried in order.
+   * The two raid beds, each with its fallbacks, tried in order.
    *
-   * The 16-bit file comes first because Chrome will not decode 24-bit PCM WAV,
-   * which is how the original was exported. Regenerate it after dropping in a
-   * new recording:
+   * The 16-bit file comes first in both cases because Chrome will not decode
+   * 24-bit PCM WAV, which is how both were exported — the original is kept as
+   * a fallback only so a missing conversion is not silence. Regenerate either
+   * after dropping in a new recording:
    *
-   *     php artisan raid:audio-convert "Your File.wav"
+   *     php artisan raid:audio-convert "Your File.wav" --out=raid-countdown.wav
+   *     php artisan raid:audio-convert "Your File.wav" --out=do-or-die.wav
    */
-  $raidAudioSources = array_values(array_filter([
-      '/audio/raid-countdown.wav',
-      '/audio/' . rawurlencode('Kabbadi Countodwn Final.wav'),
-  ], fn ($path) => is_file(public_path(rawurldecode(ltrim($path, '/'))))));
+  $bedExists = fn (string $path) => is_file(public_path(rawurldecode(ltrim($path, '/'))));
+
+  $raidAudioBeds = [
+      'countdown' => array_values(array_filter([
+          '/audio/raid-countdown.wav',
+          '/audio/' . rawurlencode('Kabbadi Countodwn Final.wav'),
+      ], $bedExists)),
+
+      'do-or-die' => array_values(array_filter([
+          '/audio/do-or-die.wav',
+          '/audio/' . rawurlencode('Do Or Die Final 2.wav'),
+      ], $bedExists)),
+  ];
 @endphp
 
 <div class="tc-title">Timer Controller</div>
@@ -93,30 +104,37 @@
   </div>
 </div>
 
-{{-- ── Raid clocks ──────────────────────────────────────── --}}
-<div class="tc-grid {{ $match->courts_swapped ? 'swapped' : '' }}" data-court-grid>
-  @foreach($sides as $side => $data)
-    <div class="tc-card tc-t{{ $side }}">
-      <div class="tc-team">{{ $data['name'] }}</div>
+{{-- ── Raid clock ────────────────────────────────────────
+     One set of controls and one clock. There is only ever one raid, and the
+     database only ever held one raid clock — this page used to render it twice,
+     once per team card, which read as two independent 30-second timers. --}}
+<div class="tc-panel tc-raidpanel">
+  <div class="tc-raidtitle">Match Timer</div>
 
-      <div class="tc-raidbtns">
-        <form action="{{ route('admin.matches.raid',$match) }}" method="POST" data-live>
-          @csrf @method('PUT')
-          <input type="hidden" name="action" value="in">
-          <input type="hidden" name="team" value="{{ $side }}">
-          <button type="submit" class="tc-raid tc-raid-in {{ $data['raiding'] ? 'active' : '' }}" data-raid-in="{{ $side }}">Raid In</button>
-        </form>
-        <form action="{{ route('admin.matches.raid',$match) }}" method="POST" data-live>
-          @csrf @method('PUT')
-          <input type="hidden" name="action" value="out">
-          <button type="submit" class="tc-raid tc-raid-out {{ $data['raiding'] ? '' : 'active' }}" data-raid-out="{{ $side }}">Raid Out</button>
-        </form>
-      </div>
+  <div class="tc-raidbtns">
+    <form action="{{ route('admin.matches.raid',$match) }}" method="POST" data-live>
+      @csrf @method('PUT')
+      <input type="hidden" name="action" value="in">
+      <button type="submit" class="tc-raid tc-raid-in {{ $match->raid_running ? 'active' : '' }}" data-raid-in>Raid In</button>
+    </form>
 
-      <div class="tc-raidclock" id="tcRaid{{ $side }}">{{ $data['raiding'] ? $match->raid_remaining : $match->raid_duration_seconds }}</div>
-      <div class="tc-raidstate" id="tcRaidState{{ $side }}">{{ $data['raiding'] ? 'In' : 'Out' }}</div>
-    </div>
-  @endforeach
+    <form action="{{ route('admin.matches.raid',$match) }}" method="POST" data-live>
+      @csrf @method('PUT')
+      <input type="hidden" name="action" value="out">
+      <button type="submit" class="tc-raid tc-raid-out {{ $match->raid_running ? '' : 'active' }}" data-raid-out>Raid Out</button>
+    </form>
+
+    {{-- Starts exactly the same raid as Raid In. data-bed is read on the click
+         and never sent: it only chooses which recording plays. --}}
+    <form action="{{ route('admin.matches.raid',$match) }}" method="POST" data-live data-bed="do-or-die">
+      @csrf @method('PUT')
+      <input type="hidden" name="action" value="in">
+      <button type="submit" class="tc-raid tc-raid-dod" data-raid-dod>Do or Die</button>
+    </form>
+  </div>
+
+  <div class="tc-raidclock {{ $match->raid_running && $match->raid_remaining <= 10 ? 'warn' : '' }}" id="tcRaidClock">{{ $match->raid_remaining }}</div>
+  <div class="tc-raidstate" id="tcRaidState">{{ $match->raid_running ? 'In' : 'Out' }}</div>
 </div>
 @endsection
 
@@ -156,31 +174,32 @@
   .tc-minutes::placeholder{color:#94A3B8}
   .tc-note{margin-top:14px;max-width:820px}
 
-  .tc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px}
+  /* ── The single raid panel ──────────────────────────────────────────────── */
+  .tc-raidpanel{text-align:center;padding:22px 18px 26px}
+  .tc-raidtitle{font-size:26px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+                color:var(--brand);margin-bottom:18px}
 
-  /* Change of ends. Only the painted order moves — each panel keeps its own
-     team and so keeps posting to the right side. */
-  .tc-grid.swapped > .tc-t1{order:2}
-  .tc-grid.swapped > .tc-t2{order:1}
-  .tc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 18px;text-align:center}
-  .tc-team{font-size:26px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;overflow-wrap:break-word}
-  .tc-t1 .tc-team{color:var(--t1)}
-  .tc-t2 .tc-team{color:var(--t2)}
-
-  .tc-raidbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+  /* Two columns, two rows: Raid In and Raid Out on the first, Do or Die
+     directly beneath Raid In. Capped so the controls stay a readable size on a
+     wide monitor instead of stretching the full width of the panel. */
+  .tc-raidbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;
+               max-width:840px;margin:0 auto 20px}
   .tc-raidbtns form{display:block}
-  .tc-raid{width:100%;border:1px solid var(--border);border-radius:7px;padding:10px 8px;font-size:13px;font-weight:700;
+  .tc-raid{width:100%;border:1px solid var(--border);border-radius:7px;padding:11px 8px;font-size:13px;font-weight:700;
            background:transparent;color:var(--ink);cursor:pointer;font-family:inherit;transition:all .12s}
   .tc-raid:hover{border-color:var(--ink2)}
-  .tc-t1 .tc-raid-in.active{background:var(--t1);border-color:var(--t1);color:#0B0F14}
-  .tc-t2 .tc-raid-in.active{background:var(--t2);border-color:var(--t2);color:#fff}
+  .tc-raid-in.active{background:var(--brand);border-color:var(--brand);color:#fff}
   .tc-raid-out.active{border-color:var(--ink2);background:rgba(255,255,255,.05)}
+
+  /* Sits under Raid In, matching its width. Solid red: a do-or-die raid is the
+     pressured one, and it is the button an operator has to find in a hurry. */
+  .tc-raid-dod{grid-column:1;background:#E0241E;border-color:#E0241E;color:#fff;letter-spacing:.6px}
+  .tc-raid-dod:hover{background:#C41C17;border-color:#C41C17;color:#fff}
 
   .tc-raidclock{font-size:52px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}
   .tc-raidclock.warn{color:#F87171}
-  .tc-raidstate{font-size:12px;font-weight:600;letter-spacing:5px;text-transform:uppercase;color:var(--ink3);margin-top:8px}
-  .tc-t1 .tc-raidstate{color:var(--t1)}
-  .tc-t2 .tc-raidstate{color:var(--t2)}
+  .tc-raidstate{font-size:12px;font-weight:600;letter-spacing:5px;text-transform:uppercase;
+                color:var(--brand);margin-top:8px}
 </style>
 @endpush
 
@@ -190,15 +209,19 @@
 <script>
 (function () {
   var clockEl = document.getElementById('tcClock');
+  var raidClockEl = document.getElementById('tcRaidClock');
+  var raidStateEl = document.getElementById('tcRaidState');
 
-  /* ── Raid countdown audio ───────────────────────────────────────────────
-     Plays on Raid In, stops on Raid Out. Add ?mute=1 to the page URL to
-     silence it, or ?vol=0.5 to trim the level. */
+  /* ── Raid audio ─────────────────────────────────────────────────────────
+     Raid In plays the countdown, Do or Die plays its own recording, and either
+     stops on Raid Out. Add ?mute=1 to the page URL to silence it, or ?vol=0.5
+     to trim the level. */
   var params = new URLSearchParams(window.location.search);
   var audioOn = params.get('mute') !== '1';
 
+  /* "countdown" is defined first, so it is the default a bare play() uses. */
   RaidAudio.configure({
-    sources: @json($raidAudioSources),
+    clips: @json($raidAudioBeds),
     raidSeconds: {{ $match->raid_duration_seconds }},
     volume: params.has('vol') ? parseFloat(params.get('vol')) : 0.85
   });
@@ -243,26 +266,25 @@
       var act = body.get('action');
 
       if (act === 'in' || act === 'out') {
-        var side = act === 'in' ? Number(body.get('team')) : null;
+        var starting = act === 'in';
 
-        /* Countdown bed, driven straight off the button. Running here means we
-           are still inside the click, which satisfies the browser's autoplay
-           rule — no "click to enable" step is ever needed. Raid In on the other
-           side mid-raid restarts the bed from the top. */
-        if (act === 'in') {
-          RaidAudio.play();
+        /* The bed, driven straight off the button. Running it here means we are
+           still inside the click, which satisfies the browser's autoplay rule —
+           no "click to enable" step is ever needed. Pressing either start
+           button again mid-raid restarts the bed from the top.
+
+           Which bed comes from the form: Do or Die carries data-bed, Raid In
+           carries nothing and so gets the countdown. */
+        if (starting) {
+          RaidAudio.play(form.getAttribute('data-bed') || 'countdown');
         } else {
           RaidAudio.stop();
         }
         refreshAudioStatus();
 
         MatchLive.patch(function (s, now) {
-          s.raid_team = side;
-          s.clocks.raid.running = (side !== null);
-          s.clocks.raid.started_at = (side !== null) ? now : null;
-          if (s.teams) {
-            s.teams.forEach(function (t) { t.raiding = (t.side === side); });
-          }
+          s.clocks.raid.running = starting;
+          s.clocks.raid.started_at = starting ? now : null;
         });
         return;
       }
@@ -301,13 +323,12 @@
       clockEl.textContent = t.matchClock;
       clockEl.classList.toggle('on', t.matchRunning);
 
-      [1, 2].forEach(function (side) {
-        var active = t.raidTeam === side;
-        var val = document.getElementById('tcRaid' + side);
-        val.textContent = active ? t.raidSeconds : t.state.clocks.raid.duration;
-        val.classList.toggle('warn', active && t.raidSeconds <= 10);
-        document.getElementById('tcRaidState' + side).textContent = active ? 'In' : 'Out';
-      });
+      /* One clock for the one raid. raidSeconds already reports the full
+         duration when nothing is running, so the panel shows what the next
+         raid will start from. */
+      raidClockEl.textContent = t.raidSeconds;
+      raidClockEl.classList.toggle('warn', t.raidRunning && t.raidSeconds <= 10);
+      raidStateEl.textContent = t.raidRunning ? 'In' : 'Out';
 
       // Start is pointless on a running or expired clock; Stop on a stopped one.
       document.getElementById('tcStart').disabled = t.matchRunning || t.matchSeconds === 0;
@@ -318,18 +339,21 @@
       if (!s) { return; }
       document.getElementById('tcPart').textContent = s.period || 'No game part set';
 
-      // Change of ends, applied without a reload.
-      document.querySelectorAll('[data-court-grid]').forEach(function (grid) {
-        grid.classList.toggle('swapped', !!s.courts_swapped);
-      });
+      /* The headline still follows a change of ends, even though the raid
+         controls no longer belong to either side. */
       document.getElementById('tcTitleL').textContent = s.left.name;
       document.getElementById('tcTitleR').textContent = s.right.name;
 
+      /* Which button is lit follows the clock, not a team. Do or Die is left
+         alone: the bed it chose is not recorded anywhere, so after a reload
+         there would be nothing to light it from. */
+      var running = !!(s.clocks && s.clocks.raid && s.clocks.raid.running);
+
       document.querySelectorAll('[data-raid-in]').forEach(function (b) {
-        b.classList.toggle('active', Number(b.dataset.raidIn) === s.raid_team);
+        b.classList.toggle('active', running);
       });
       document.querySelectorAll('[data-raid-out]').forEach(function (b) {
-        b.classList.toggle('active', Number(b.dataset.raidOut) !== s.raid_team);
+        b.classList.toggle('active', !running);
       });
     }
   });

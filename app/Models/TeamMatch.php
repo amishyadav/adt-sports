@@ -136,9 +136,18 @@ class TeamMatch extends Model
 
     /* ── Raid clock (30 seconds, counts down) ──────────── */
 
+    /**
+     * The raid clock runs on its own start time alone.
+     *
+     * It used to also require raid_team, from when the timer console had a Raid
+     * In button per side. That console now has one set of controls and one
+     * clock, so a raid is started without naming a side and the team would
+     * never be set — which, under the old rule, meant the clock could never
+     * run. raid_team is still honoured when something does supply it.
+     */
     public function getRaidRunningAttribute(): bool
     {
-        return $this->raid_team !== null && $this->raid_started_at !== null;
+        return $this->raid_started_at !== null;
     }
 
     /** Seconds left in the current raid, or a full raid when nobody is in. */
