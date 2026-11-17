@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Mumbai Maulers crest">
+    <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1b4dff"/>
+            <stop offset="100%" stop-color="#ffd400"/>
+        </linearGradient>
+    </defs>
+    <path d="M60 4 108 20v44c0 28-20 44-48 52C32 108 12 92 12 64V20z" fill="url(#g)" stroke="#1b4dff" stroke-width="4"/>
+    <circle cx="60" cy="52" r="26" fill="#ffffff" opacity="0.92"/>
+    <text x="60" y="61" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#1b4dff">MUM</text>
+</svg>
