@@ -400,13 +400,19 @@ class MatchScreenController extends Controller
     /** Raid In / Raid Out — the 30-second raid clock for one side. */
     public function updateRaid(Request $request, TeamMatch $match)
     {
+        /*
+         * team is optional. The timer console has a single set of raid controls
+         * and does not send one — a raid is just the 30-second clock there. It
+         * stays accepted so a caller that does know the side can still record
+         * it; see TeamMatch::getRaidRunningAttribute().
+         */
         $data = $request->validate([
             'action' => ['required', Rule::in(['in', 'out'])],
-            'team'   => ['required_if:action,in', 'nullable', Rule::in(['1', '2'])],
+            'team'   => ['nullable', Rule::in(['1', '2'])],
         ]);
 
         if ($data['action'] === 'in') {
-            $match->raid_team = (int) $data['team'];
+            $match->raid_team = isset($data['team']) ? (int) $data['team'] : null;
             $match->raid_started_at = now();
         } else {
             $match->raid_team = null;

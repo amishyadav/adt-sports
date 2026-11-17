@@ -150,15 +150,39 @@ function setTeamLogoPreview(url) {
   if (url) {
     img.src = url; img.style.display = 'block'; icon.style.display = 'none'; clr.style.display = 'inline-flex';
   } else {
-    img.src = ''; img.style.display = 'none'; icon.style.display = 'block'; clr.style.display = 'none';
+    // removeAttribute, not src = '': an empty src resolves against the page URL
+    // and the browser goes off and requests the document again.
+    img.removeAttribute('src'); img.style.display = 'none'; icon.style.display = 'block'; clr.style.display = 'none';
   }
 }
 
+/*
+ * Preview the chosen file as a data: URL rather than an object URL.
+ *
+ * URL.createObjectURL hands back a blob: address, and the admin
+ * Content-Security-Policy permits images from 'self', data: and https: only —
+ * so the browser refused to load it and the box showed a broken image instead
+ * of the logo. data: is already allowed, so this needs no widening of the
+ * policy, and unlike an object URL there is nothing to revoke afterwards.
+ */
 function previewTeamLogo(input) {
   var file = input.files && input.files[0];
   if (!file) { return; }
+
   document.getElementById('teamRemoveLogo').value = '0';
-  setTeamLogoPreview(URL.createObjectURL(file));
+
+  var reader = new FileReader();
+
+  reader.onload = function () { setTeamLogoPreview(reader.result); };
+
+  reader.onerror = function () {
+    /* Keep whatever was showing rather than replacing it with a broken frame.
+       The upload itself is unaffected — the file is still submitted and the
+       server still validates it. */
+    console.warn('[teams] Could not read the chosen file to preview it.');
+  };
+
+  reader.readAsDataURL(file);
 }
 
 function clearTeamLogo() {

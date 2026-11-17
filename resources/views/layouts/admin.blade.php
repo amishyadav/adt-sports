@@ -402,7 +402,13 @@ nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
           <span class="nav-icon"><i class="fa-solid fa-comments"></i></span> Comments
         </a>
         <a href="{{ route('admin.users.index') }}" class="nav-item {{ request()->routeIs('admin.users.*') ? 'active':'' }}">
-          <span class="nav-icon"><i class="fa-solid fa-users"></i></span> Team Members
+          <span class="nav-icon"><i class="fa-solid fa-users"></i></span> Users
+        </a>
+        <a href="{{ route('admin.roles.index') }}" class="nav-item {{ request()->routeIs('admin.roles.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-user-shield"></i></span> Roles
+        </a>
+        <a href="{{ route('admin.permissions.index') }}" class="nav-item {{ request()->routeIs('admin.permissions.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-key"></i></span> Permissions
         </a>
         <a href="{{ route('admin.subscribers.index') }}" class="nav-item {{ request()->routeIs('admin.subscribers.*') ? 'active':'' }}">
           <span class="nav-icon"><i class="fa-solid fa-envelope"></i></span> Subscribers

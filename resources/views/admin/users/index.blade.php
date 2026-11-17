@@ -1,74 +1,138 @@
 @extends('layouts.admin')
-@section('title','Team Members')
+@section('title','Users')
 @section('content')
 
 <div class="page-hd">
-  <div><h1>Team Members</h1><div class="page-hd-sub">{{ $users->count() }} members</div></div>
+  <div>
+    <h1>Users</h1>
+    <div class="page-hd-sub">{{ $users->total() }} {{ Str::plural('account', $users->total()) }}</div>
+  </div>
+  <div>
+    <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
+      <i class="fa-solid fa-user-plus"></i> Add User
+    </a>
+  </div>
 </div>
 
-<div class="split-grid">
+<div class="table-wrap">
+  <div class="table-hd">
+    <h3>All Users</h3>
+    <div class="table-filters">
+      <form method="GET" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="text" name="search" class="search-input" placeholder="Name, email or phone…"
+               value="{{ request('search') }}">
+        <select name="role" class="filter-select" onchange="this.form.submit()">
+          <option value="">All Roles</option>
+          @foreach($roles as $r)
+            <option value="{{ $r->name }}" {{ strcasecmp(request('role',''), $r->name) === 0 ? 'selected' : '' }}>
+              {{ $r->name }}
+            </option>
+          @endforeach
+        </select>
+        <select name="status" class="filter-select" onchange="this.form.submit()">
+          <option value="">All Status</option>
+          <option value="active"   {{ request('status')==='active'   ? 'selected' : '' }}>Active</option>
+          <option value="inactive" {{ request('status')==='inactive' ? 'selected' : '' }}>Inactive</option>
+        </select>
+        <button type="submit" class="btn btn-ghost btn-sm"><i class="fa-solid fa-magnifying-glass"></i></button>
+        @if(request('search') || request('role') || request('status'))
+          <a href="{{ route('admin.users.index') }}" class="btn btn-ghost btn-sm">Clear</a>
+        @endif
+      </form>
+    </div>
+  </div>
 
-  <div class="table-wrap">
-    <div class="table-hd"><h3>All Users</h3></div>
-    <table>
-      <thead><tr><th>Member</th><th>Email</th><th>Role</th><th>Articles</th><th>Last Login</th><th>Actions</th></tr></thead>
-      <tbody>
-        @forelse($users as $u)
-        <tr>
-          <td>
-            <div style="display:flex;align-items:center;gap:10px">
-              <div class="user-av" style="background:{{ $u->id===1?'var(--brand)':'#4A4640' }}">{{ $u->initials }}</div>
-              <span style="font-weight:500;color:var(--ink)">{{ $u->name }}</span>
+  <table>
+    <thead>
+      <tr>
+        <th>User</th><th>Contact</th><th>Role</th><th>Status</th>
+        <th>Articles</th><th>Last Login</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      @forelse($users as $u)
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            @if($u->avatar)
+              <img src="{{ $u->avatar }}" alt="{{ $u->full_name }}" class="user-photo" loading="lazy">
+            @else
+              <div class="user-av" style="background:{{ $u->isAdmin() ? 'var(--brand)' : '#4A4640' }}">{{ $u->initials }}</div>
+            @endif
+            <div>
+              <span style="font-weight:500;color:var(--ink)">{{ $u->full_name }}</span>
+              @if($u->id === auth()->id())
+                <span style="font-size:11px;color:var(--ink3)"> · you</span>
+              @endif
+              @if($u->gender)
+                <div style="font-size:11px;color:var(--ink3)">{{ \App\Models\User::GENDERS[$u->gender] ?? $u->gender }}</div>
+              @endif
             </div>
-          </td>
-          <td style="font-size:12px;color:var(--ink3)">{{ $u->email }}</td>
-          <td><span class="badge badge-{{ $u->role }}">{{ $u->role }}</span></td>
-          <td style="font-weight:500">{{ $u->articles_count }}</td>
-          <td style="font-size:11px;color:var(--ink3)">
-            {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}
-          </td>
-          <td>
+          </div>
+        </td>
+        <td style="font-size:12px;color:var(--ink3)">
+          {{ $u->email }}
+          @if($u->phone)
+            <div>{{ $u->phone }}</div>
+          @endif
+        </td>
+        <td>
+          <span class="badge badge-{{ $u->isAdmin() ? 'admin' : 'editor' }}">{{ $u->role }}</span>
+          @unless($u->hasPanelAccess())
+            <div style="font-size:10.5px;color:#FCD34D;margin-top:3px" title="Only Admin and Editor open the admin panel for now">
+              <i class="fa-solid fa-triangle-exclamation"></i> no panel access
+            </div>
+          @endunless
+        </td>
+        <td>
+          <span class="badge {{ $u->isActive() ? 'badge-published' : 'badge-draft' }}">
+            {{ $u->isActive() ? 'Active' : 'Inactive' }}
+          </span>
+        </td>
+        <td style="font-weight:500">{{ $u->articles_count }}</td>
+        <td style="font-size:11px;color:var(--ink3)">
+          {{ $u->last_login_at ? $u->last_login_at->diffForHumans() : 'Never' }}
+        </td>
+        <td>
+          <div class="actions">
+            <a href="{{ route('admin.users.edit',$u) }}" class="btn btn-ghost btn-sm">
+              <i class="fa-solid fa-pen"></i> Edit
+            </a>
             @if($u->id !== auth()->id())
               <form action="{{ route('admin.users.destroy',$u) }}" method="POST" style="display:inline"
-                    onsubmit="return confirm('Remove {{ $u->name }} from the team?')">
+                    onsubmit="return confirm('Delete {{ addslashes($u->full_name) }}? Their articles and uploads are reassigned to you.')">
                 @csrf @method('DELETE')
-                <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-user-xmark"></i> Remove</button>
+                <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash-can"></i></button>
               </form>
-            @else
-              <span style="font-size:12px;color:var(--ink3)">You</span>
             @endif
-          </td>
-        </tr>
-        @empty
-        <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--ink3)">No team members yet</td></tr>
-        @endforelse
-      </tbody>
-    </table>
-  </div>
+          </div>
+        </td>
+      </tr>
+      @empty
+      <tr>
+        <td colspan="7">
+          <div class="empty-state">
+            <i class="fa-solid fa-users"></i>
+            @if(request('search') || request('role') || request('status'))
+              No user matches those filters.
+            @else
+              No users yet
+            @endif
+          </div>
+        </td>
+      </tr>
+      @endforelse
+    </tbody>
+  </table>
 
-  <div class="panel-card">
-    <h4>Invite Team Member</h4>
-    <form action="{{ route('admin.users.store') }}" method="POST">
-      @csrf
-      <div class="field">
-        <label>Full Name *</label>
-        <input type="text" name="name" required placeholder="Full name" value="{{ old('name') }}">
-      </div>
-      <div class="field">
-        <label>Email Address *</label>
-        <input type="email" name="email" required placeholder="email@example.com" value="{{ old('email') }}">
-      </div>
-      <div class="field" style="margin-bottom:14px">
-        <label>Role</label>
-        <select name="role">
-          <option value="editor">Editor — Write & manage own articles</option>
-          <option value="admin">Admin — Full access to everything</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary" style="width:100%"><i class="fa-solid fa-paper-plane"></i> Send Invite</button>
-      <div class="field-hint" style="margin-top:10px">We'll email them a secure link to set their own password — you never handle it.</div>
-    </form>
-  </div>
-
+  @if($users->hasPages())
+    <div style="padding:14px">{{ $users->links() }}</div>
+  @endif
 </div>
 @endsection
+
+@push('styles')
+<style>
+  .user-photo{width:34px;height:34px;border-radius:50%;object-fit:cover;background:var(--panel);border:1px solid var(--border);flex-shrink:0}
+</style>
+@endpush
