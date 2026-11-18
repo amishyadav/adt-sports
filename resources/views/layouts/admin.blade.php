@@ -329,6 +329,10 @@ nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
   .page-hd .btn{flex:1;justify-content:center}
 }
 </style>
+{{-- KTMS section styles, loaded only where they are used. Plain file, no build step. --}}
+@if(request()->routeIs('admin.ktms.*'))
+  <link rel="stylesheet" href="{{ asset('css/ktms.css') }}">
+@endif
 @stack('styles')
 </head>
 <body>
@@ -422,6 +426,24 @@ nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
         @endif
         <a href="{{ route('admin.settings.index') }}#profile" class="nav-item">
           <span class="nav-icon"><i class="fa-solid fa-circle-user"></i></span> My Profile
+        </a>
+      </div>
+
+      {{-- KTMS: the kabaddi tournament management section, kept separate from
+           the match console above and from its data. --}}
+      <div class="nav-section">
+        <div class="nav-sec-label">KTMS</div>
+        <a href="{{ route('admin.ktms.dashboard') }}" class="nav-item {{ request()->routeIs('admin.ktms.dashboard') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-gauge"></i></span> KTMS Dashboard
+        </a>
+        <a href="{{ route('admin.ktms.tournaments.index') }}" class="nav-item {{ request()->routeIs('admin.ktms.tournaments.*') || request()->routeIs('admin.ktms.teams.*') || request()->routeIs('admin.ktms.players.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> Tournaments
+        </a>
+        <a href="{{ route('admin.ktms.matches.index') }}" class="nav-item {{ request()->routeIs('admin.ktms.matches.*') || request()->routeIs('admin.ktms.scoring.*') || request()->routeIs('admin.ktms.timer.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-table-tennis-paddle-ball"></i></span> Matches
+        </a>
+        <a href="{{ route('admin.ktms.reports.index') }}" class="nav-item {{ request()->routeIs('admin.ktms.reports.*') ? 'active':'' }}">
+          <span class="nav-icon"><i class="fa-solid fa-chart-column"></i></span> Player Reports
         </a>
       </div>
     </nav>

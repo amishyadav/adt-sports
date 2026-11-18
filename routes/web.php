@@ -23,6 +23,18 @@ use App\Http\Controllers\Frontend\CommentController as PublicCommentController;
 use App\Http\Controllers\Frontend\CommenterController;
 use App\Http\Controllers\Admin\CommentController as AdminCommentController;
 
+// KTMS section. Aliased because several of these class names already exist
+// under the Admin namespace for the original match console.
+use App\Http\Controllers\Ktms\DashboardController as KtmsDashboardController;
+use App\Http\Controllers\Ktms\TournamentController as KtmsTournamentController;
+use App\Http\Controllers\Ktms\TeamController as KtmsTeamController;
+use App\Http\Controllers\Ktms\PlayerController as KtmsPlayerController;
+use App\Http\Controllers\Ktms\MatchController as KtmsMatchController;
+use App\Http\Controllers\Ktms\ScoringController as KtmsScoringController;
+use App\Http\Controllers\Ktms\TimerController as KtmsTimerController;
+use App\Http\Controllers\Ktms\LiveController as KtmsLiveController;
+use App\Http\Controllers\Ktms\ReportController as KtmsReportController;
+
 /* ─── PUBLIC FRONTEND ──────────────────────────────────── */
 Route::get('/',                  [FrontendController::class, 'home'])->name('home');
 Route::get('/article/{slug}',    [FrontendController::class, 'article'])->name('article');
@@ -169,5 +181,104 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
         // Audit trail (full admins only)
         Route::get('/activity',                  [ActivityController::class, 'index'])->name('activity.index');
+    });
+
+    /* ─── KTMS: KABADDI TOURNAMENT MANAGEMENT ──────────────────
+     | A self-contained section. Its tables all carry a ktms_ prefix and its
+     | classes live under App\*\Ktms, so none of it touches the original match
+     | console above.
+     |
+     | Same split as the rest of the panel: lists, match pages and the live
+     | screens are visible to any staff member, every mutation is restricted to
+     | full administrators.
+     */
+    Route::prefix('ktms')->name('ktms.')->group(function () {
+
+        /*
+         * Writes, and the forms that feed them.
+         *
+         * Declared before the read-only routes on purpose: /tournaments/create
+         * has to be matched before /tournaments/{tournament}, or the binding
+         * would swallow the literal word "create".
+         */
+        Route::middleware('admin.only')->group(function () {
+            // Tournaments
+            Route::get('/tournaments/create',               [KtmsTournamentController::class, 'create'])->name('tournaments.create');
+            Route::post('/tournaments',                     [KtmsTournamentController::class, 'store'])->name('tournaments.store');
+            Route::get('/tournaments/{tournament}/edit',    [KtmsTournamentController::class, 'edit'])->name('tournaments.edit');
+            Route::put('/tournaments/{tournament}',         [KtmsTournamentController::class, 'update'])->name('tournaments.update');
+            Route::delete('/tournaments/{tournament}',      [KtmsTournamentController::class, 'destroy'])->name('tournaments.destroy');
+
+            // Squads, created inside their tournament and edited through short URLs
+            Route::get('/tournaments/{tournament}/teams/create', [KtmsTeamController::class, 'create'])->name('teams.create');
+            Route::post('/tournaments/{tournament}/teams',   [KtmsTeamController::class, 'store'])->name('teams.store');
+            Route::get('/teams/{team}/edit',                 [KtmsTeamController::class, 'edit'])->name('teams.edit');
+            Route::put('/teams/{team}',                      [KtmsTeamController::class, 'update'])->name('teams.update');
+            Route::delete('/teams/{team}',                   [KtmsTeamController::class, 'destroy'])->name('teams.destroy');
+
+            // Players
+            Route::get('/teams/{team}/players/create',       [KtmsPlayerController::class, 'create'])->name('players.create');
+            Route::post('/teams/{team}/players',             [KtmsPlayerController::class, 'store'])->name('players.store');
+            Route::get('/players/{player}/edit',             [KtmsPlayerController::class, 'edit'])->name('players.edit');
+            Route::put('/players/{player}',                  [KtmsPlayerController::class, 'update'])->name('players.update');
+            Route::delete('/players/{player}',               [KtmsPlayerController::class, 'destroy'])->name('players.destroy');
+
+            // Matches
+            Route::get('/tournaments/{tournament}/matches/create', [KtmsMatchController::class, 'create'])->name('matches.create');
+            Route::post('/tournaments/{tournament}/matches',  [KtmsMatchController::class, 'store'])->name('matches.store');
+            Route::get('/matches/{match}/edit',               [KtmsMatchController::class, 'edit'])->name('matches.edit');
+            Route::put('/matches/{match}',                    [KtmsMatchController::class, 'update'])->name('matches.update');
+            Route::delete('/matches/{match}',                 [KtmsMatchController::class, 'destroy'])->name('matches.destroy');
+            Route::post('/matches/{match}/reset',             [KtmsMatchController::class, 'reset'])->name('matches.reset');
+
+            // Scoring console actions
+            Route::prefix('/matches/{match}/scoring')->name('scoring.')->group(function () {
+                Route::post('/score',        [KtmsScoringController::class, 'adjustScore'])->name('score');
+                Route::post('/raid/toggle',  [KtmsScoringController::class, 'toggleRaid'])->name('raid.toggle');
+                Route::post('/raid',         [KtmsScoringController::class, 'recordRaid'])->name('raid.record');
+                Route::post('/defense',      [KtmsScoringController::class, 'recordDefense'])->name('defense.record');
+                Route::post('/court',        [KtmsScoringController::class, 'adjustCourt'])->name('court');
+                Route::post('/revive',       [KtmsScoringController::class, 'revive'])->name('revive');
+                Route::post('/undo',         [KtmsScoringController::class, 'undo'])->name('undo');
+                Route::post('/status',       [KtmsScoringController::class, 'setStatus'])->name('status');
+            });
+
+            // Timer console actions
+            Route::prefix('/matches/{match}/timer')->name('timer.')->group(function () {
+                Route::post('/game/start',   [KtmsTimerController::class, 'startGameClock'])->name('game.start');
+                Route::post('/game/pause',   [KtmsTimerController::class, 'pauseGameClock'])->name('game.pause');
+                Route::post('/game/reset',   [KtmsTimerController::class, 'resetGameClock'])->name('game.reset');
+                Route::post('/game/adjust',  [KtmsTimerController::class, 'adjustGameClock'])->name('game.adjust');
+                Route::post('/raid/start',   [KtmsTimerController::class, 'startRaidClock'])->name('raid.start');
+                Route::post('/raid/pause',   [KtmsTimerController::class, 'pauseRaidClock'])->name('raid.pause');
+                Route::post('/raid/reset',   [KtmsTimerController::class, 'resetRaidClock'])->name('raid.reset');
+                Route::post('/half',         [KtmsTimerController::class, 'setHalf'])->name('half');
+                Route::post('/court',        [KtmsTimerController::class, 'setCourt'])->name('court');
+            });
+        });
+
+        /* Read-only: any staff member. */
+        Route::get('/',                      KtmsDashboardController::class)->name('dashboard');
+
+        Route::get('/tournaments',           [KtmsTournamentController::class, 'index'])->name('tournaments.index');
+        Route::get('/tournaments/{tournament}', [KtmsTournamentController::class, 'show'])->name('tournaments.show');
+
+        Route::get('/teams/{team}',          [KtmsTeamController::class, 'show'])->name('teams.show');
+        Route::get('/players/{player}',      [KtmsPlayerController::class, 'show'])->name('players.show');
+
+        Route::get('/matches',               [KtmsMatchController::class, 'index'])->name('matches.index');
+        Route::get('/matches/{match}',       [KtmsMatchController::class, 'show'])->name('matches.show');
+
+        // The three live screens, all reading one snapshot.
+        Route::get('/matches/{match}/scoring', [KtmsScoringController::class, 'console'])->name('scoring.console');
+        Route::get('/matches/{match}/timer',   [KtmsTimerController::class, 'console'])->name('timer.console');
+        Route::get('/matches/{match}/live',    [KtmsLiveController::class, 'show'])->name('matches.live');
+        Route::get('/matches/{match}/state',   [KtmsLiveController::class, 'state'])->name('matches.state');
+
+        // Reports. /reports/export is declared before the tournament-scoped
+        // report so the literal segment wins.
+        Route::get('/reports',               [KtmsReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/export',        [KtmsReportController::class, 'export'])->name('reports.export');
+        Route::get('/reports/tournaments/{tournament}', [KtmsReportController::class, 'tournament'])->name('reports.tournament');
     });
 });
