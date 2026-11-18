@@ -40,7 +40,7 @@
 
   <table>
     <thead>
-      <tr><th>#</th><th>Fixture</th><th>Tournament</th><th>Score</th><th>Status</th><th>Scheduled</th><th>Screens</th></tr>
+      <tr><th>#</th><th>Fixture</th><th>Tournament</th><th>Score</th><th>Status</th><th>Scheduled</th><th>Actions</th></tr>
     </thead>
     <tbody>
       @forelse($matches as $match)
@@ -68,12 +68,8 @@
               <a href="{{ route('admin.ktms.scoring.console', $match) }}" class="btn btn-ghost btn-sm" title="Scoring console">
                 <i class="fa-solid fa-gamepad"></i>
               </a>
-              <a href="{{ route('admin.ktms.timer.console', $match) }}" class="btn btn-ghost btn-sm" title="Timer console">
-                <i class="fa-solid fa-stopwatch"></i>
-              </a>
-              <a href="{{ route('admin.ktms.matches.live', $match) }}" target="_blank" rel="noopener"
-                 class="btn btn-ghost btn-sm" title="Broadcast display (opens in a new tab)">
-                <i class="fa-solid fa-tv"></i>
+              <a href="{{ route('admin.ktms.matches.show', $match) }}" class="btn btn-ghost btn-sm" title="Match page">
+                <i class="fa-solid fa-eye"></i>
               </a>
             </div>
           </td>

@@ -30,6 +30,7 @@
     'ktms.team.updated'  => ['#0ea5e9','KTMS'],
     'ktms.team.deleted'  => ['#e0245e','KTMS'],
     'ktms.player.created'=> ['#16a34a','KTMS'],
+    'ktms.player.imported'=> ['#16a34a','KTMS'],
     'ktms.player.updated'=> ['#0ea5e9','KTMS'],
     'ktms.player.deleted'=> ['#e0245e','KTMS'],
     'ktms.match.created' => ['#16a34a','KTMS'],

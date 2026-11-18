@@ -92,20 +92,101 @@ class MatchService
         });
     }
 
-    /** Put a side back to full strength, which is what happens after an all out. */
+    /**
+     * Put a side back to full strength, which is what happens after an all out.
+     *
+     * Driven by is_starter, which is why a red card clears that flag: an expelled
+     * player must not walk back on at the next all out.
+     */
     public function reviveTeam(GameMatch $match, int $teamId): void
     {
-        $match->lineup()
-            ->wherePivot('team_id', $teamId)
-            ->get()
-            ->each(function ($player) use ($match) {
-                $match->lineup()->updateExistingPivot($player->id, [
-                    'is_on_court' => (bool) $player->pivot->is_starter,
-                    'status' => $player->pivot->is_starter ? 'on_court' : 'bench',
-                ]);
-            });
+        $squad = $match->lineup()->wherePivot('team_id', $teamId)->get();
 
-        $match->setPlayersOnCourt($teamId, $match->playersPerSide());
+        $squad->each(function ($player) use ($match) {
+            $match->lineup()->updateExistingPivot($player->id, [
+                'is_on_court' => (bool) $player->pivot->is_starter,
+                'status' => $player->pivot->is_starter ? 'on_court' : 'bench',
+            ]);
+        });
+
+        /*
+         * The headcount has to be the number actually brought back on, not the
+         * full side size. A red card clears is_starter, so after an expulsion
+         * one fewer player stands up — and a squad with fewer active players
+         * than players_per_side never had a full side to begin with.
+         *
+         * With no lineup rows at all there is nothing to count, so the side
+         * size is still the best answer.
+         */
+        $standing = $squad->filter(fn ($player) => (bool) $player->pivot->is_starter)->count();
+
+        $match->setPlayersOnCourt($teamId, $squad->isEmpty() ? $match->playersPerSide() : $standing);
+    }
+
+    /* ─── Who is on the mat ────────────────────────────────── */
+
+    /**
+     * Capture the pivot state of named players so an action can be reversed.
+     *
+     * The counter snapshot that every action already stores covers the score and
+     * the court number, but not *which* players are standing. Without this an
+     * undone substitution would put the headcount back and leave the wrong two
+     * players swapped.
+     *
+     * @param  array<int, int>  $playerIds
+     * @return array<int, array{is_on_court: bool, status: string, is_starter: bool}>
+     */
+    public function lineupSnapshot(GameMatch $match, array $playerIds): array
+    {
+        if ($playerIds === []) {
+            return [];
+        }
+
+        return $match->lineup()
+            ->whereIn('ktms_players.id', $playerIds)
+            ->get()
+            ->mapWithKeys(fn ($player) => [$player->id => [
+                'is_on_court' => (bool) $player->pivot->is_on_court,
+                'status' => (string) $player->pivot->status,
+                'is_starter' => (bool) $player->pivot->is_starter,
+            ]])
+            ->all();
+    }
+
+    /**
+     * @param  array<int|string, array<string, mixed>>  $snapshot
+     */
+    public function restoreLineup(GameMatch $match, array $snapshot): void
+    {
+        foreach ($snapshot as $playerId => $pivot) {
+            $match->lineup()->updateExistingPivot((int) $playerId, [
+                'is_on_court' => (bool) ($pivot['is_on_court'] ?? false),
+                'status' => $pivot['status'] ?? 'bench',
+                'is_starter' => (bool) ($pivot['is_starter'] ?? false),
+            ]);
+        }
+    }
+
+    /** Send a player off the mat without touching the headcount. */
+    public function takeOffMat(GameMatch $match, int $playerId, string $status = 'out', bool $clearStarter = false): void
+    {
+        $pivot = ['is_on_court' => false, 'status' => $status];
+
+        if ($clearStarter) {
+            // Stops reviveTeam() bringing an expelled player back on.
+            $pivot['is_starter'] = false;
+        }
+
+        $match->lineup()->updateExistingPivot($playerId, $pivot);
+    }
+
+    /** Bring a bench player onto the mat without touching the headcount. */
+    public function putOnMat(GameMatch $match, int $playerId): void
+    {
+        $match->lineup()->updateExistingPivot($playerId, [
+            'is_on_court' => true,
+            'status' => 'on_court',
+        ]);
     }
 
     /* ─── Status transitions ───────────────────────────────── */
@@ -170,71 +251,16 @@ class MatchService
         return $match;
     }
 
-    /* ─── Game clock ───────────────────────────────────────── */
-
-    public function startGameClock(GameMatch $match): GameMatch
-    {
-        if ($match->effectiveGameClockRemaining() <= 0) {
-            return $match;
-        }
-
-        // Re-anchor from the current derived value so repeated starts are harmless.
-        $match->game_clock_remaining_seconds = $match->effectiveGameClockRemaining();
-        $match->game_timer_running = true;
-        $match->game_timer_updated_at = now();
-
-        if ($match->status === GameMatch::STATUS_SCHEDULED) {
-            $match->status = GameMatch::STATUS_LIVE;
-            $match->started_at ??= now();
-        }
-
-        $match->save();
-
-        $this->logEvent($match, MatchEvent::TYPE_TIMER, 'Game clock started');
-
-        return $match;
-    }
-
-    public function pauseGameClock(GameMatch $match): GameMatch
-    {
-        $match->freezeGameClock();
-        $match->save();
-
-        $this->logEvent($match, MatchEvent::TYPE_TIMER, 'Game clock paused');
-
-        return $match;
-    }
-
-    public function resetGameClock(GameMatch $match): GameMatch
-    {
-        $match->game_clock_remaining_seconds = $match->half_duration_seconds;
-        $match->game_timer_running = false;
-        $match->game_timer_updated_at = now();
-        $match->save();
-
-        $this->logEvent($match, MatchEvent::TYPE_TIMER, 'Game clock reset');
-
-        return $match;
-    }
-
-    /** Nudge the game clock, for operator corrections. */
-    public function adjustGameClock(GameMatch $match, int $seconds): GameMatch
-    {
-        $current = $match->effectiveGameClockRemaining();
-        $updated = max(0, min($match->half_duration_seconds, $current + $seconds));
-
-        $match->game_clock_remaining_seconds = $updated;
-        $match->game_timer_updated_at = now();
-        $match->save();
-
-        $this->logEvent($match, MatchEvent::TYPE_TIMER, sprintf(
-            'Game clock adjusted by %+ds to %s',
-            $seconds,
-            GameMatch::formatClock($updated)
-        ));
-
-        return $match;
-    }
+    /* ─── Halves ───────────────────────────────────────────────
+     | The separate timer console that used to start, pause, reset and nudge
+     | both clocks has been removed, and with it those methods.
+     |
+     | The clocks themselves are still live: a running one counts down from its
+     | stored anchor, settleExpiredTimers() moves the match to half time and then
+     | to full time as it runs out, and the raid clock is armed by the scoring
+     | console's raid toggle. Freezing a clock now happens through setStatus(),
+     | which is what the scoring console's Half time and Full time buttons call.
+     */
 
     public function setHalf(GameMatch $match, int $half): GameMatch
     {
@@ -266,50 +292,6 @@ class MatchService
         $match->save();
 
         $this->logEvent($match, MatchEvent::TYPE_HALF_CHANGE, "Half {$half} set up");
-
-        return $match;
-    }
-
-    /* ─── Raid clock ───────────────────────────────────────── */
-
-    public function startRaidClock(GameMatch $match): GameMatch
-    {
-        $remaining = $match->effectiveRaidClockRemaining();
-
-        // Starting an expired raid clock implies the operator wants a fresh one.
-        $match->raid_clock_remaining_seconds = $remaining > 0 ? $remaining : $match->raid_duration_seconds;
-        $match->raid_timer_running = true;
-        $match->raid_timer_updated_at = now();
-        $match->save();
-
-        $this->logEvent($match, MatchEvent::TYPE_TIMER, 'Raid clock started');
-
-        return $match;
-    }
-
-    public function pauseRaidClock(GameMatch $match): GameMatch
-    {
-        $match->freezeRaidClock();
-        $match->save();
-
-        $this->logEvent($match, MatchEvent::TYPE_TIMER, 'Raid clock paused');
-
-        return $match;
-    }
-
-    /** Put the raid clock back to its full duration, optionally leaving it running. */
-    public function resetRaidClock(GameMatch $match, bool $autoStart = false): GameMatch
-    {
-        $match->raid_clock_remaining_seconds = $match->raid_duration_seconds;
-        $match->raid_timer_running = $autoStart;
-        $match->raid_timer_updated_at = now();
-        $match->save();
-
-        $this->logEvent(
-            $match,
-            MatchEvent::TYPE_TIMER,
-            $autoStart ? 'Raid clock restarted' : 'Raid clock reset'
-        );
 
         return $match;
     }

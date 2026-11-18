@@ -28,6 +28,34 @@ class MatchEvent extends Model
     public const TYPE_STATUS_CHANGE = 'status_change';
     public const TYPE_ALL_OUT = 'all_out';
 
+    /* Lineup changes made by the bench rather than by play. */
+    public const TYPE_SUBSTITUTION = 'substitution';
+    public const TYPE_INJURY = 'injury';
+
+    /* Officiating decisions. */
+    public const TYPE_WARNING = 'warning';
+    public const TYPE_CARD_GREEN = 'card_green';
+    public const TYPE_CARD_YELLOW = 'card_yellow';
+    public const TYPE_CARD_RED = 'card_red';
+    public const TYPE_TECHNICAL_POINT = 'technical_point';
+
+    /**
+     * The sanctions, and what each one does to the player.
+     *
+     * A warning and a green card are on the record only. A yellow card is a
+     * suspension and a red card an expulsion, so both take the player off the
+     * mat — which is why they are listed with that consequence here rather than
+     * being left for the caller to remember.
+     *
+     * @var array<string, array{label: string, leavesMat: bool, forMatch: bool}>
+     */
+    public const SANCTIONS = [
+        self::TYPE_WARNING => ['label' => 'Warning', 'leavesMat' => false, 'forMatch' => false],
+        self::TYPE_CARD_GREEN => ['label' => 'Green card', 'leavesMat' => false, 'forMatch' => false],
+        self::TYPE_CARD_YELLOW => ['label' => 'Yellow card', 'leavesMat' => true, 'forMatch' => false],
+        self::TYPE_CARD_RED => ['label' => 'Red card', 'leavesMat' => true, 'forMatch' => true],
+    ];
+
     protected $fillable = [
         'match_id', 'team_id', 'player_id', 'raid_id', 'event_type',
         'description', 'points', 'half', 'game_clock_at_event',
@@ -84,7 +112,33 @@ class MatchEvent extends Model
             self::TYPE_SCORE_ADJUSTMENT => 'fa-plus-minus',
             self::TYPE_COURT_UPDATE => 'fa-users',
             self::TYPE_STATUS_CHANGE => 'fa-flag',
+            self::TYPE_SUBSTITUTION => 'fa-right-left',
+            self::TYPE_INJURY => 'fa-kit-medical',
+            self::TYPE_WARNING => 'fa-bell',
+            self::TYPE_CARD_GREEN,
+            self::TYPE_CARD_YELLOW,
+            self::TYPE_CARD_RED => 'fa-square',
+            self::TYPE_TECHNICAL_POINT => 'fa-gavel',
             default => 'fa-circle-dot',
+        };
+    }
+
+    /**
+     * A colour token for the timeline icon.
+     *
+     * Cards are the one thing an operator scans a timeline for, and three
+     * identically coloured squares would defeat the point.
+     */
+    public function getIconToneAttribute(): string
+    {
+        return match ($this->event_type) {
+            self::TYPE_CARD_GREEN => 'green',
+            self::TYPE_CARD_YELLOW, self::TYPE_WARNING => 'amber',
+            self::TYPE_CARD_RED, self::TYPE_ALL_OUT => 'red',
+            self::TYPE_INJURY => 'red',
+            self::TYPE_SUBSTITUTION => 'info',
+            self::TYPE_TECHNICAL_POINT => 'amber',
+            default => 'brand',
         };
     }
 }

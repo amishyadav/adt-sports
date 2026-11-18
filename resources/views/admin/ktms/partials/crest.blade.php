@@ -3,9 +3,15 @@
   the squad's own colour.
 
   @param $team  App\Models\Ktms\Team|null
-  @param $size  'lg' for the larger variant
+  @param $size  'sm' or 'lg' for the smaller and larger variants
 --}}
-@php $cls = 'ktms-crest' . (($size ?? '') === 'lg' ? ' ktms-crest-lg' : ''); @endphp
+@php
+  $cls = 'ktms-crest' . match ($size ?? '') {
+      'sm' => ' ktms-crest-sm',
+      'lg' => ' ktms-crest-lg',
+      default => '',
+  };
+@endphp
 
 @if($team && $team->logo_url)
   <img src="{{ $team->logo_url }}" alt="{{ $team->name }}" class="{{ $cls }}" loading="lazy">

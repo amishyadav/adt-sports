@@ -230,6 +230,8 @@ class MatchStateService
                 'half' => $event->half,
                 'clock' => $event->clock_label,
                 'icon' => $event->icon,
+                // A colour token so cards stand out in a scrolling timeline.
+                'tone' => $event->icon_tone,
                 'team_id' => $event->team_id,
                 'team_name' => $event->team?->name,
                 'player_name' => $event->player?->display_name,

@@ -56,23 +56,18 @@
   </div>
 </div>
 
-{{-- The three screens --}}
+{{-- Scoring --}}
 <div class="panel-card" style="margin-bottom:16px">
-  <h4>Match Screens</h4>
+  <h4>Scoring</h4>
   <div class="ktms-btn-row">
     <a href="{{ route('admin.ktms.scoring.console', $match) }}" class="btn btn-primary">
-      <i class="fa-solid fa-gamepad"></i> Scoring Console
-    </a>
-    <a href="{{ route('admin.ktms.timer.console', $match) }}" class="btn btn-ghost">
-      <i class="fa-solid fa-stopwatch"></i> Timer Console
-    </a>
-    <a href="{{ route('admin.ktms.matches.live', $match) }}" target="_blank" rel="noopener" class="btn btn-ghost">
-      <i class="fa-solid fa-tv"></i> Broadcast Display
+      <i class="fa-solid fa-gamepad"></i> Open Scoring Console
     </a>
   </div>
   <div class="field-hint" style="margin-top:10px">
-    All three read one server-side snapshot, so two operators can work side by
-    side and the display never disagrees with them.
+    Raids, tackles, the court count and the match status are all recorded here.
+    Every action replies with a fresh snapshot, so the console always redraws
+    from the server rather than from its own guess.
   </div>
 </div>
 
@@ -179,7 +174,9 @@
           @foreach($timeline as $event)
             <div class="ktms-event" style="{{ $event->is_undone ? 'opacity:.4;text-decoration:line-through' : '' }}">
               <span class="ktms-event-clock">{{ $event->clock_label }}</span>
-              <span class="ktms-event-icon"><i class="fa-solid {{ $event->icon }}"></i></span>
+              <span class="ktms-event-icon">
+                <i class="fa-solid {{ $event->icon }} ktms-tone-{{ $event->icon_tone }}"></i>
+              </span>
               <span class="ktms-event-text">{{ $event->description }}</span>
               <span class="ktms-event-pts">{{ $event->points ? '+' . $event->points : '' }}</span>
             </div>

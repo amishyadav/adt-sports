@@ -150,12 +150,12 @@
     <div class="panel-card">
       <h4>Running a Match</h4>
       <p style="font-size:12.5px;color:var(--ink2);line-height:1.6;margin-bottom:10px">
-        Each match has three screens that share one server-side snapshot: a
-        scoring console, a timer console and a broadcast display. Two operators
-        can work side by side without the screens drifting apart.
+        Each match has a scoring console for recording raids, tackles, the court
+        count and the match status. Every action is saved on the server and
+        replies with a fresh snapshot of the whole match.
       </p>
       <p style="font-size:12.5px;color:var(--ink3);line-height:1.6">
-        Open a match to get to all three.
+        Open a match to get to it.
       </p>
     </div>
   </div>

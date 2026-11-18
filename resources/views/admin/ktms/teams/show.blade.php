@@ -19,6 +19,9 @@
     <a href="{{ route('admin.ktms.teams.edit', $team) }}" class="btn btn-ghost">
       <i class="fa-solid fa-pen"></i> Edit
     </a>
+    <a href="{{ route('admin.ktms.players.import.form', $team) }}" class="btn btn-ghost">
+      <i class="fa-solid fa-file-excel"></i> Import Players
+    </a>
     <a href="{{ route('admin.ktms.players.create', $team) }}" class="btn btn-primary">
       <i class="fa-solid fa-user-plus"></i> Add Player
     </a>

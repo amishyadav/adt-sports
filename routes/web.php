@@ -29,9 +29,10 @@ use App\Http\Controllers\Ktms\DashboardController as KtmsDashboardController;
 use App\Http\Controllers\Ktms\TournamentController as KtmsTournamentController;
 use App\Http\Controllers\Ktms\TeamController as KtmsTeamController;
 use App\Http\Controllers\Ktms\PlayerController as KtmsPlayerController;
+use App\Http\Controllers\Ktms\PlayerImportController as KtmsPlayerImportController;
 use App\Http\Controllers\Ktms\MatchController as KtmsMatchController;
 use App\Http\Controllers\Ktms\ScoringController as KtmsScoringController;
-use App\Http\Controllers\Ktms\TimerController as KtmsTimerController;
+use App\Http\Controllers\Ktms\OfficialsController as KtmsOfficialsController;
 use App\Http\Controllers\Ktms\LiveController as KtmsLiveController;
 use App\Http\Controllers\Ktms\ReportController as KtmsReportController;
 
@@ -219,6 +220,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
             // Players
             Route::get('/teams/{team}/players/create',       [KtmsPlayerController::class, 'create'])->name('players.create');
             Route::post('/teams/{team}/players',             [KtmsPlayerController::class, 'store'])->name('players.store');
+
+            // Bulk creation from a spreadsheet. /import/sample is declared
+            // before /import so the literal segment is not mistaken for a file.
+            Route::get('/teams/{team}/players/import/sample', [KtmsPlayerImportController::class, 'sample'])->name('players.import.sample');
+            Route::get('/teams/{team}/players/import',        [KtmsPlayerImportController::class, 'form'])->name('players.import.form');
+            Route::post('/teams/{team}/players/import',       [KtmsPlayerImportController::class, 'store'])->name('players.import.store');
             Route::get('/players/{player}/edit',             [KtmsPlayerController::class, 'edit'])->name('players.edit');
             Route::put('/players/{player}',                  [KtmsPlayerController::class, 'update'])->name('players.update');
             Route::delete('/players/{player}',               [KtmsPlayerController::class, 'destroy'])->name('players.destroy');
@@ -243,17 +250,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
                 Route::post('/status',       [KtmsScoringController::class, 'setStatus'])->name('status');
             });
 
-            // Timer console actions
-            Route::prefix('/matches/{match}/timer')->name('timer.')->group(function () {
-                Route::post('/game/start',   [KtmsTimerController::class, 'startGameClock'])->name('game.start');
-                Route::post('/game/pause',   [KtmsTimerController::class, 'pauseGameClock'])->name('game.pause');
-                Route::post('/game/reset',   [KtmsTimerController::class, 'resetGameClock'])->name('game.reset');
-                Route::post('/game/adjust',  [KtmsTimerController::class, 'adjustGameClock'])->name('game.adjust');
-                Route::post('/raid/start',   [KtmsTimerController::class, 'startRaidClock'])->name('raid.start');
-                Route::post('/raid/pause',   [KtmsTimerController::class, 'pauseRaidClock'])->name('raid.pause');
-                Route::post('/raid/reset',   [KtmsTimerController::class, 'resetRaidClock'])->name('raid.reset');
-                Route::post('/half',         [KtmsTimerController::class, 'setHalf'])->name('half');
-                Route::post('/court',        [KtmsTimerController::class, 'setCourt'])->name('court');
+            // Officiating actions on the same console: substitutions, injuries,
+            // warnings, cards and technical points.
+            Route::prefix('/matches/{match}/officials')->name('officials.')->group(function () {
+                Route::post('/substitution', [KtmsOfficialsController::class, 'substitution'])->name('substitution');
+                Route::post('/injury',       [KtmsOfficialsController::class, 'injury'])->name('injury');
+                Route::post('/sanction',     [KtmsOfficialsController::class, 'sanction'])->name('sanction');
+                Route::post('/technical',    [KtmsOfficialsController::class, 'technical'])->name('technical');
             });
         });
 
@@ -269,10 +272,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         Route::get('/matches',               [KtmsMatchController::class, 'index'])->name('matches.index');
         Route::get('/matches/{match}',       [KtmsMatchController::class, 'show'])->name('matches.show');
 
-        // The three live screens, all reading one snapshot.
+        // The scoring console, and the snapshot endpoint it polls.
         Route::get('/matches/{match}/scoring', [KtmsScoringController::class, 'console'])->name('scoring.console');
-        Route::get('/matches/{match}/timer',   [KtmsTimerController::class, 'console'])->name('timer.console');
-        Route::get('/matches/{match}/live',    [KtmsLiveController::class, 'show'])->name('matches.live');
         Route::get('/matches/{match}/state',   [KtmsLiveController::class, 'state'])->name('matches.state');
 
         // Reports. /reports/export is declared before the tournament-scoped

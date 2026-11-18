@@ -422,28 +422,11 @@ class ScoringService
         });
     }
 
-    public function setPlayersOnCourt(GameMatch $match, int $teamId, int $count): GameMatch
-    {
-        $this->assertTeamInMatch($match, $teamId);
-
-        return DB::transaction(function () use ($match, $teamId, $count) {
-            $snapshot = $this->snapshot($match);
-
-            $match->setPlayersOnCourt($teamId, $count);
-            $match->save();
-
-            $team = $this->teamOf($match, $teamId);
-
-            $this->matches->logEvent(
-                $match,
-                MatchEvent::TYPE_COURT_UPDATE,
-                sprintf('%s court count set to %d', $team?->name, $match->playersOnCourtFor($teamId)),
-                ['team_id' => $teamId, 'payload' => ['snapshot' => $snapshot]],
-            );
-
-            return $match;
-        });
-    }
+    /*
+     * Setting the court count to an absolute number was the timer console's job
+     * and went with it. The scoring console adjusts by ±1 and can revive a whole
+     * side, which covers the same ground.
+     */
 
     /** Bring a whole side back to full strength. */
     public function reviveTeam(GameMatch $match, int $teamId): GameMatch
@@ -489,6 +472,16 @@ class ScoringService
                 MatchEvent::TYPE_COURT_UPDATE,
                 MatchEvent::TYPE_ALL_OUT,
                 MatchEvent::TYPE_RAID_TOGGLED,
+                // The officiating actions. They store the same counter snapshot
+                // plus the pivot state of the players they moved, so one code
+                // path reverses both kinds.
+                MatchEvent::TYPE_SUBSTITUTION,
+                MatchEvent::TYPE_INJURY,
+                MatchEvent::TYPE_WARNING,
+                MatchEvent::TYPE_CARD_GREEN,
+                MatchEvent::TYPE_CARD_YELLOW,
+                MatchEvent::TYPE_CARD_RED,
+                MatchEvent::TYPE_TECHNICAL_POINT,
             ])
             ->orderByDesc('id')
             ->first();
@@ -537,6 +530,17 @@ class ScoringService
                     'raiding_team_id' => $snapshot['raiding_team_id'] ?? $match->raiding_team_id,
                     'is_raid_active' => $snapshot['is_raid_active'] ?? $match->is_raid_active,
                 ]);
+            }
+
+            /*
+             * Put the named players back where they were.
+             *
+             * The counter snapshot above restores how many are standing; this
+             * restores which ones. Without it an undone substitution would give
+             * the right headcount with the wrong two players swapped.
+             */
+            if (is_array($payload['lineup'] ?? null)) {
+                $this->matches->restoreLineup($match, $payload['lineup']);
             }
 
             $match->save();

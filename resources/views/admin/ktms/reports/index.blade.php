@@ -78,9 +78,12 @@
           @endforeach
         </select>
 
-        <label class="ktms-pick" style="padding:6px 10px">
+        {{-- is-picked, because .ktms-pick hides the box itself; without it there
+             would be no sign whether the filter is on. --}}
+        <label class="ktms-pick {{ request()->boolean('played_only') ? 'is-picked' : '' }}" style="padding:6px 10px">
           <input type="checkbox" name="played_only" value="1" onchange="this.form.submit()"
                  {{ request()->boolean('played_only') ? 'checked' : '' }}>
+          <i class="fa-solid {{ request()->boolean('played_only') ? 'fa-square-check' : 'fa-square' }}"></i>
           Played only
         </label>
 

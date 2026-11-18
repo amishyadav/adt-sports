@@ -439,7 +439,7 @@ nav[aria-label="Pagination"] .pg-dots { border:none;background:none; }
         <a href="{{ route('admin.ktms.tournaments.index') }}" class="nav-item {{ request()->routeIs('admin.ktms.tournaments.*') || request()->routeIs('admin.ktms.teams.*') || request()->routeIs('admin.ktms.players.*') ? 'active':'' }}">
           <span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> Tournaments
         </a>
-        <a href="{{ route('admin.ktms.matches.index') }}" class="nav-item {{ request()->routeIs('admin.ktms.matches.*') || request()->routeIs('admin.ktms.scoring.*') || request()->routeIs('admin.ktms.timer.*') ? 'active':'' }}">
+        <a href="{{ route('admin.ktms.matches.index') }}" class="nav-item {{ request()->routeIs('admin.ktms.matches.*') || request()->routeIs('admin.ktms.scoring.*') ? 'active':'' }}">
           <span class="nav-icon"><i class="fa-solid fa-table-tennis-paddle-ball"></i></span> Matches
         </a>
         <a href="{{ route('admin.ktms.reports.index') }}" class="nav-item {{ request()->routeIs('admin.ktms.reports.*') ? 'active':'' }}">

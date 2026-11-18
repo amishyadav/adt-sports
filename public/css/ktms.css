@@ -68,6 +68,7 @@
   font-size: 11px; font-weight: 700; letter-spacing: .5px; color: #fff;
 }
 .ktms-crest-lg { width: 60px; height: 60px; font-size: 17px; }
+.ktms-crest-sm { width: 22px; height: 22px; font-size: 8.5px; letter-spacing: 0; }
 
 /* ─── Match cards ──────────────────────────────────────── */
 .ktms-fixtures { display: grid; gap: 12px; }
@@ -158,23 +159,61 @@
 /* A big tap target, for use on a tablet at the side of the mat. */
 .btn-ktms-xl { padding: 14px 18px; font-size: 15px; justify-content: center; }
 
-/* Player pick lists. */
-.ktms-picks { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+/* ─── Pick lists ───────────────────────────────────────────
+   A pick is a <label>, and inside a .field the admin stylesheet makes labels
+   small uppercase captions. Left alone that turned player names into cramped
+   capitals, so the inherited type is reset here. */
+.ktms-picks { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+
+/* Short, self-contained options such as the tackle type. */
+.ktms-opts { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+
 .ktms-pick {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 9px 7px; border-radius: 8px; cursor: pointer; text-align: center;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 10px; border-radius: 8px; cursor: pointer; min-width: 0;
   background: var(--card); border: 1px solid var(--border);
-  font-size: 12px; font-weight: 600; color: var(--ink2);
+  font-size: 12.5px; font-weight: 500; color: var(--ink2);
+  text-transform: none; letter-spacing: 0; margin-bottom: 0; text-align: center;
   transition: border-color .12s, background .12s, color .12s;
 }
 .ktms-pick:hover { border-color: var(--brand); color: var(--ink); }
 .ktms-pick input { display: none; }
 .ktms-pick.is-picked { border-color: var(--brand); background: rgba(212, 66, 10, .14); color: var(--brand); }
 .ktms-pick.is-off { opacity: .4; }
+
+/* Names read better ranged left, and ellipsis rather than truncated server-side
+   so the full name is still there on hover and for screen readers. */
+.ktms-picks .ktms-pick { justify-content: flex-start; text-align: left; }
+.ktms-pick-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
 .ktms-pick-no {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; border-radius: 50%;
-  background: rgba(255, 255, 255, .07); font-size: 10.5px; flex-shrink: 0;
+  width: 21px; height: 21px; border-radius: 50%;
+  background: rgba(255, 255, 255, .07); font-size: 10.5px; font-weight: 700;
+  flex-shrink: 0;
+}
+.ktms-pick.is-picked .ktms-pick-no { background: rgba(212, 66, 10, .22); }
+
+/* ─── Squad grouping ───────────────────────────────────────
+   Both sides number their shirts from 1, so a flat list of everyone leaves no
+   way to tell whose #3 is whose. */
+.ktms-squad { margin-bottom: 12px; }
+.ktms-squad:last-child { margin-bottom: 0; }
+
+.ktms-squad-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; margin-bottom: 7px;
+  border-radius: 7px; background: rgba(255, 255, 255, .035);
+  border-left: 3px solid var(--squad, var(--brand));
+}
+.ktms-squad-name {
+  font-size: 12px; font-weight: 600; letter-spacing: .2px; text-transform: none;
+  color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ktms-squad-side {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--ink3);
 }
 
 /* ─── Timeline ─────────────────────────────────────────── */
@@ -188,6 +227,164 @@
 .ktms-event-icon { color: var(--brand); text-align: center; }
 .ktms-event-text { color: var(--ink2); line-height: 1.45; }
 .ktms-event-pts { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Icon tones.
+   Three cards drawn as three identical brand-coloured squares would defeat the
+   point of a timeline you scan, so the event type carries a colour with it.
+   Declared after .ktms-event-icon so it wins without !important. */
+.ktms-tone-green { color: #4ADE80; }
+.ktms-tone-amber { color: #FBBF24; }
+.ktms-tone-red   { color: #F87171; }
+.ktms-tone-info  { color: #38BDF8; }
+.ktms-tone-brand { color: var(--brand); }
+
+/* ─── The raid sheet ───────────────────────────────────────
+   A modal rather than another column of fields: recording a raid is one
+   decision about one raider, and the operator has seconds to make it. */
+.ktms-modal { position: fixed; inset: 0; z-index: 1500; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.ktms-modal[hidden] { display: none; }
+
+.ktms-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .68); backdrop-filter: blur(2px); }
+
+.ktms-modal-card {
+  position: relative; display: flex; flex-direction: column;
+  width: min(640px, 100%); max-height: calc(100vh - 40px);
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
+  animation: ktms-sheet-in .16s ease-out;
+}
+
+@keyframes ktms-sheet-in {
+  from { opacity: 0; transform: translateY(10px) scale(.99); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ktms-modal-card { animation: none; } }
+
+.ktms-modal-head {
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  padding: 15px 18px; border-bottom: 1px solid var(--border);
+}
+.ktms-modal-no { width: 34px; height: 34px; font-size: 13px; background: rgba(212, 66, 10, .18); color: var(--brand); }
+.ktms-modal-title {
+  font-size: 16px; font-weight: 700; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ktms-modal-sub {
+  display: flex; align-items: center; gap: 7px; margin-top: 2px;
+  font-size: 11.5px; color: var(--ink3);
+}
+.ktms-modal-x {
+  margin-left: auto; flex-shrink: 0; width: 30px; height: 30px; border-radius: 7px;
+  font-size: 22px; line-height: 1; color: var(--ink3); background: none; border: none; cursor: pointer;
+}
+.ktms-modal-x:hover { background: var(--card); color: var(--ink); }
+
+.ktms-modal-dod {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 9px 18px; font-size: 12.5px; font-weight: 600;
+  background: rgba(217, 119, 6, .12); color: #FCD34D;
+  border-bottom: 1px solid rgba(217, 119, 6, .3);
+}
+.ktms-modal-dod[hidden] { display: none; }
+
+.ktms-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1 1 auto; }
+.ktms-modal-body [data-step][hidden] { display: none; }
+
+/* The three outcomes, as the first and largest thing in the sheet. */
+.ktms-outcomes { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.ktms-outcome {
+  display: grid; justify-items: center; gap: 3px; padding: 13px 10px;
+  border-radius: 10px; cursor: pointer; text-align: center;
+  background: var(--card); border: 1px solid var(--border); color: var(--ink2);
+  transition: border-color .12s, background .12s, color .12s;
+}
+.ktms-outcome i { font-size: 17px; margin-bottom: 2px; }
+.ktms-outcome span { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ktms-outcome small { font-size: 10.5px; color: var(--ink3); line-height: 1.35; }
+.ktms-outcome:hover { border-color: var(--brand); }
+.ktms-outcome.is-picked { border-color: var(--brand); background: rgba(212, 66, 10, .14); }
+.ktms-outcome.is-picked i, .ktms-outcome.is-picked span { color: var(--brand); }
+
+/* A full-width pick, for the bonus toggles. */
+.ktms-pick-wide { width: 100%; justify-content: flex-start !important; text-align: left; }
+
+.ktms-modal-more { border-top: 1px solid var(--border2); padding-top: 11px; margin-top: 3px; }
+.ktms-modal-more summary {
+  cursor: pointer; font-size: 11px; font-weight: 600; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--ink3); list-style: none;
+}
+.ktms-modal-more summary::-webkit-details-marker { display: none; }
+.ktms-modal-more summary::before { content: '\25B8'; display: inline-block; margin-right: 6px; transition: transform .12s; }
+.ktms-modal-more[open] summary::before { transform: rotate(90deg); }
+.ktms-modal-more summary:hover { color: var(--ink2); }
+.ktms-modal-opt { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink3); opacity: .8; }
+
+.ktms-modal-note {
+  display: flex; gap: 9px; padding: 10px 12px; margin-top: 10px; border-radius: 8px;
+  background: rgba(14, 165, 233, .1); border: 1px solid rgba(14, 165, 233, .3);
+  color: #7DD3FC; font-size: 12.5px; line-height: 1.5;
+}
+.ktms-modal-note[hidden] { display: none; }
+
+.ktms-modal-foot {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex-shrink: 0;
+  padding: 13px 18px; border-top: 1px solid var(--border); background: var(--card);
+  border-radius: 0 0 14px 14px;
+}
+/* The consequence, spelled out before it is committed. */
+.ktms-modal-result { flex: 1 1 200px; font-size: 12.5px; font-weight: 600; color: #86EFAC; line-height: 1.45; }
+.ktms-modal-result.is-blocked { color: #FCD34D; font-weight: 500; }
+.ktms-modal-foot .ktms-btn-row { margin-left: auto; }
+
+/* Nothing behind the sheet should scroll while it is open. */
+body.ktms-sheet-open { overflow: hidden; }
+
+/* An action in flight locks the sheet too, not just the console behind it. */
+body.ktms-busy .ktms-modal-card { opacity: .72; pointer-events: none; }
+
+@media (max-width: 560px) {
+  .ktms-modal { padding: 0; align-items: flex-end; }
+  .ktms-modal-card { width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0; }
+  .ktms-modal-foot { border-radius: 0; }
+  .ktms-modal-foot .ktms-btn-row { margin-left: 0; width: 100%; }
+  .ktms-modal-foot .ktms-btn-row .btn { flex: 1; justify-content: center; }
+  .ktms-outcomes { grid-template-columns: 1fr; }
+  .ktms-outcome { grid-template-columns: 24px 1fr; justify-items: start; text-align: left; align-items: center; }
+  .ktms-outcome i { margin: 0; }
+  .ktms-outcome small { grid-column: 2; }
+  .ktms-official-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Officiating panel ────────────────────────────────────
+   Seven actions that each open the same sheet. Deliberately smaller and
+   quieter than the scoring buttons: a card is rare, and a console where every
+   control shouts is a console where the operator mis-taps. */
+.ktms-official-grid { display: grid; gap: 6px; grid-template-columns: repeat(2, 1fr); }
+
+.ktms-official {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 10px 11px; border-radius: 8px; cursor: pointer; text-align: left;
+  background: var(--card); border: 1px solid var(--border2);
+  font-family: inherit; font-size: 12.5px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--ink2);
+  transition: border-color .12s, background .12s, color .12s;
+}
+.ktms-official:hover { border-color: var(--brand); color: var(--ink); }
+.ktms-official:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.ktms-official i { flex-shrink: 0; font-size: 13px; width: 15px; text-align: center; }
+.ktms-official-wide { grid-column: 1 / -1; }
+
+/* The sheet's head badge takes the action's tone, so a red card sheet is not
+   mistaken for a substitution sheet at a glance. Written as a compound
+   selector because .ktms-modal-no sets a brand colour of its own. */
+.ktms-modal-no.ktms-tone-green { color: #4ADE80; background: rgba(74, 222, 128, .16); }
+.ktms-modal-no.ktms-tone-amber { color: #FBBF24; background: rgba(251, 191, 36, .16); }
+.ktms-modal-no.ktms-tone-red   { color: #F87171; background: rgba(248, 113, 113, .16); }
+.ktms-modal-no.ktms-tone-info  { color: #38BDF8; background: rgba(56, 189, 248, .16); }
+
+/* Nobody on the bench, nobody on the mat — said in place of an empty grid so
+   the operator knows the list is empty rather than broken. */
+.ktms-official-empty { font-size: 12px; color: var(--ink3); padding: 2px 0; }
 
 /* ─── Connection dot ───────────────────────────────────── */
 .ktms-conn { font-size: 10px; }
